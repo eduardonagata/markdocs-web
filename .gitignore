@@ -1,0 +1,10 @@
+# .NET build output
+bin/
+obj/
+
+# Test output
+TestResults/
+
+# Environment
+.env
+!.env.example

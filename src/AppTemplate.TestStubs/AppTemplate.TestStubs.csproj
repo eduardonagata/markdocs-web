@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>AppTemplate.TestStubs</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      FrameworkReference permite que um classlib use tipos de ASP.NET Core
+      (IEndpointRouteBuilder, Results, etc.) sem ser um projeto Web.
+    -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Emissao/validacao de JWT em dev. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+  </ItemGroup>
+
+</Project>
