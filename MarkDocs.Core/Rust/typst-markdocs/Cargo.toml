@@ -1,0 +1,36 @@
+[package]
+name = "typst-markdocs"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Biblioteca dinâmica: o .NET a carrega por P/Invoke (`NativeLibrary`), a
+# partir de `runtimes/<rid>/native/` ao lado do assembly MarkDocs.Core.
+# É a única diferença de forma em relação ao crate do NotiqTypst, que é
+# `staticlib` porque o linker do Xcode o cola dentro do binário do app.
+[lib]
+name = "typst_markdocs"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Versão pinada — a mesma do NotiqTypst. Subir o Typst é tarefa própria, nunca
+# efeito colateral de outra — e inclui migrar Nucleo/Emissao e rodar os testes.
+typst = "=0.15.1"
+typst-pdf = "=0.15.1"
+typst-library = "=0.15.1"
+typst-layout = "=0.15.1"
+typst-syntax = "=0.15.1"
+typst-utils = "=0.15.1"
+comemo = "0.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Tamanho de binário é o custo principal da abordagem.
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+panic = "unwind"   # `unwind`, e não `abort`: catch_unwind precisa desenrolar
+                   # para que uma falha interna do Rust vire ErroTypst em vez
+                   # de derrubar o processo .NET.

@@ -8,3 +8,16 @@ TestResults/
 # Environment
 .env
 !.env.example
+
+# Rust (o motor é compilado por MarkDocs.Core/Scripts/construir-typst.sh)
+MarkDocs.Core/Rust/**/target/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Armazenamento local (ARMAZENAMENTO_PROVEDOR=disco)
+dados/
+
+# Sistema
+.DS_Store

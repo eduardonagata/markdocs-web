@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    MarkDocs.Abstractions — o modelo de dados do app web
+    (Docs/especificacao-inicial/001-modelo-de-dados-web.md): IDocumento,
+    Formatacao e suas famílias, Template, os valores e a serialização.
+
+    Depende do MarkDocs.Core porque Formatacao.Aplicar recebe um
+    EixoDeFormatacao e um ValorDeEixo, que são API do Core. O Core não conhece
+    este pacote.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MarkDocs.Abstractions</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MongoDB.Bson" Version="3.12.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\MarkDocs.Core\Sources\MarkDocs.Core\MarkDocs.Core.csproj" />
+  </ItemGroup>
+
+</Project>

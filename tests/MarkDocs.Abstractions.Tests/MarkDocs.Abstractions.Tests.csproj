@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>MarkDocs.Abstractions.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MarkDocs.Abstractions\MarkDocs.Abstractions.csproj" />
+    <ProjectReference Include="..\..\MarkDocs.Core\Sources\MarkDocs.Core\MarkDocs.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Os templates de fábrica e as fontes são do app (slice Documentos); os
+      testes os leem de lá, sem cópia.
+    -->
+    <None Include="..\..\src\MarkDocs.Documentos\Infrastructure\TemplatesDeFabrica\*.json"
+          Link="Recursos\Templates\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\MarkDocs.Documentos\Infrastructure\Fontes\*.otf"
+          Link="Recursos\Fontes\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

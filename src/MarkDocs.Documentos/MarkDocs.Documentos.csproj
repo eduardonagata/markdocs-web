@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    O slice de documentos: o Documento (que implementa IDocumento), os
+    templates salvos, a persistência no MongoDB, o adaptador de armazenamento
+    de objetos e a composição do PDF pelo MarkDocs.Core.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MarkDocs.Documentos</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.4.1" />
+    <PackageReference Include="MongoDB.Driver" Version="3.12.0" />
+    <PackageReference Include="Minio" Version="6.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Configuration, DI, Options, Logging e IHostedService do runtime compartilhado. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MarkDocs.Abstractions\MarkDocs.Abstractions.csproj" />
+    <ProjectReference Include="..\..\MarkDocs.Core\Sources\MarkDocs.Core\MarkDocs.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- As fontes são do app, não do MarkDocs.Core: o motor só usa o que entregamos. -->
+    <EmbeddedResource Include="Infrastructure\Fontes\*.otf" LogicalName="MarkDocs.Documentos.Fontes.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Infrastructure\TemplatesDeFabrica\*.json" LogicalName="MarkDocs.Documentos.TemplatesDeFabrica.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="MarkDocs.Documentos.Tests" />
+  </ItemGroup>
+
+</Project>

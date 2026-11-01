@@ -1,0 +1,76 @@
+{
+  "familia": "documento-de-negocio",
+  "esquema": 1,
+  "id": "contrato-padrao",
+  "nome": "Contrato padrão",
+  "tipoDocumental": "Contrato",
+  "fontes": ["Libertinus Serif"],
+
+  "pagina": {
+    "papel": "a4",
+    "margem": { "topo": "32mm", "base": "28mm", "esquerda": "25mm", "direita": "25mm" }
+  },
+
+  "texto": {
+    "familia": "Libertinus Serif",
+    "tamanho": "11pt",
+    "cor": "#1c1917",
+    "idioma": "pt"
+  },
+
+  "paragrafo": { "justificado": true, "entrelinha": "0.7em", "espacoEntre": "10pt" },
+
+  "titulos": [
+    { "nivel": 1, "tamanho": "17pt", "alinhamento": "centro", "caixa": "alta",
+      "espacoAntes": "0pt", "espacoDepois": "28pt" },
+    { "nivel": 2, "tamanho": "12pt", "alinhamento": "esquerda", "caixa": "alta",
+      "espacoAntes": "22pt", "espacoDepois": "8pt" },
+    { "nivel": 3, "tamanho": "11pt", "alinhamento": "esquerda", "forte": false,
+      "espacoAntes": "16pt", "espacoDepois": "6pt" }
+  ],
+
+  "tabela": {
+    "filete": "#d6d3d1",
+    "espessura": "0.5pt",
+    "respiro": "5pt",
+    "cabecalhoForte": true,
+    "repetirCabecalho": true
+  },
+
+  "estilosDeTexto": {
+    "nota": { "tamanho": "8.5pt", "cor": "#57534e" }
+  },
+
+  "moldura": {
+    "paginas": {
+      "todas": {
+        "rodape": {
+          "afastamento": "16mm",
+          "estilo": "nota",
+          "direita": [
+            { "peca": "texto", "valor": "Página " },
+            { "peca": "campo", "campo": "numeroDaPagina" },
+            { "peca": "texto", "valor": " de " },
+            { "peca": "campo", "campo": "totalDePaginas" }
+          ]
+        }
+      },
+      "demais": {
+        "cabecalho": {
+          "estilo": "nota",
+          "direita": [{ "peca": "campo", "campo": "tituloDoDocumento" }]
+        },
+        "rodape": {
+          "afastamento": "16mm",
+          "estilo": "nota",
+          "direita": [
+            { "peca": "texto", "valor": "Página " },
+            { "peca": "campo", "campo": "numeroDaPagina" },
+            { "peca": "texto", "valor": " de " },
+            { "peca": "campo", "campo": "totalDePaginas" }
+          ]
+        }
+      }
+    }
+  }
+}
