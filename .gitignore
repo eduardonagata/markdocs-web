@@ -21,3 +21,4 @@ dados/
 
 # Sistema
 .DS_Store
+frontend/*.tsbuildinfo

@@ -133,7 +133,7 @@ public class ImagensTests
             var pdf = Apoio.Renderizador().Pdf(
                 "![x](imagens/x.png)", Apoio.TemplateMinimo(), new Dictionary<string, byte[]> { ["x.png"] = png });
             using var documento = UglyToad.PdfPig.PdfDocument.Open(pdf);
-            return documento.GetPage(1).GetImages().Single().Bounds.Width;
+            return documento.GetPage(1).GetImages().Single().BoundingBox.Width;
         }
 
         // A4 com margens de 22 mm: a coluna tem 166 mm.

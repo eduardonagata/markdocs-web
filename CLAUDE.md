@@ -1,5 +1,17 @@
 # CLAUDE.md — Politicas de Desenvolvimento (.NET)
 
+## MarkDocs — o que vale para este app
+
+Este repositorio nasceu do template de vertical slices; as politicas abaixo valem, com estas particularidades:
+
+- **Single-tenant.** Um database MongoDB so, sem `TenantId` e sem `ITenantAccessor`. Nao introduza multilocacao.
+- **Sem autenticacao na borda**, por ora (MVP em validacao): os endpoints nao usam `RequireAuthorization()`. Quando entrar, entra no Host.
+- **`MarkDocs.Core/` fica fora de `src/`, de proposito.** E o pacote de composicao (transcricao do NotiqTypst), desenvolvido aqui mas independente: tem a propria solucao, os proprios testes (`MarkDocs.Core/Tests/`) e o motor nativo (`MarkDocs.Core/Artefatos/`). Nada em `MarkDocs.Core/` referencia o app. Ver `MarkDocs.Core/README.md`.
+- **Os testes do MarkDocs.Core sao os do NotiqTypst, com as mesmas assercoes** (`MarkDocs.Core/Docs/Testes.md`). Comportamento que muda, muda junto com o teste e com esse documento, no mesmo commit — e uma mudanca que nao veio do NotiqTypst e anunciada como divergencia (como a extensao de imagens, `MarkDocs.Core/Docs/Imagens.md`).
+- **`MarkDocs.Abstractions` e minimo**, como a especificacao `Docs/especificacao-inicial/001-modelo-de-dados-web.md`. Regra de aplicacao vai para o slice (`MarkDocs.Documentos`), nao para la.
+- **O frontend (`frontend/`) e independente dos slices**: fala so com `/api/*`. Quem o hospeda e `MarkDocs.WebUi` (`app.MapWebUi()`).
+- **Configuracao por variaveis de ambiente planas** (`DOCUMENTOS_*`, `MINIO_*`, `ARMAZENAMENTO_*`), lidas no `Add<Slice>Module` e documentadas no README e no `.env.example`.
+
 ## Organizacao do codigo
 
 ### Modelo mental: Slice vs Layer
@@ -100,9 +112,11 @@ Um slice pode ser **autocontido** (todas as camadas — `Domain/Application/Infr
 
 ---
 
-## Tenancy — pergunte antes de implementar persistencia
+## Tenancy
 
-O produto **nao fixa um modelo de tenancy unico**. Cada slice escolhe conforme seu requisito operacional. Modelos suportados:
+**No MarkDocs, o modelo e unico: sem tenancy** (single-tenant, um database). O texto abaixo e a politica geral do template, e so volta a valer se o app passar a ser multilocatario — nesse caso, pergunte antes de implementar.
+
+O template **nao fixa um modelo de tenancy unico**. Cada slice escolhe conforme seu requisito operacional. Modelos suportados:
 
 - **Database-per-tenant** — cada tenant tem seu proprio database (ex.: `tid-{tenantId}`). `IMongoDatabase` e resolvido por requisicao via um `ITenantAccessor` que le o tenant da claim do JWT. **Sem** `TenantId` na entidade. Forte isolamento; complica `BackgroundService` (sem `HttpContext` para resolver tenant) e relatorios cross-tenant.
 - **Single-database com `TenantId`** — todos os tenants compartilham o database; cada entidade carrega `TenantId` e queries filtram por ele. Workers varrem todos os tenants em uma query so. Isolamento depende de filtros corretos em todo lugar.
@@ -217,8 +231,8 @@ A camada de hosting e a camada HTTP sao dois projetos distintos. Confundir os do
 
 ```csharp
 // no Program.cs do Host:
-using AppTemplate.WebApi;                  // WebApiMarker
-using AppTemplate.WebApi.EndpointHandlers; // extensao MapEndpoints
+using MarkDocs.WebApi;                     // WebApiMarker
+using MarkDocs.WebApi.EndpointHandlers;    // extensao MapEndpoints
 
 app.MapEndpoints(typeof(WebApiMarker).Assembly);
 ```
@@ -269,7 +283,7 @@ public class <Recurso>Handler : IEndpointRouteHandler
 - Handler mora em `<Produto>.WebApi/EndpointHandlers/<Slice>/<Recurso>Handler.cs`.
 - DTOs em `<Produto>.WebApi/EndpointHandlers/<Slice>/Dto/*.cs` (Request/Response).
 - Metodos de endpoint sao `internal static` — nunca `public`.
-- Descoberta automatica: `app.MapEndpoints(Assembly.GetExecutingAssembly())` em `Program.cs`. Nao ha registro manual no `Program.cs`.
+- Descoberta automatica: `app.MapEndpoints(typeof(WebApiMarker).Assembly)` em `Program.cs`. Nao ha registro manual no `Program.cs`.
 - Conversao entidade -> DTO e local ao endpoint handler (metodo privado `ToDto`), mantendo o slice livre de artefatos HTTP/JSON.
 
 ---
@@ -344,7 +358,8 @@ Deve ser evitado na medida do possível, quando for necessário peça a permiss�
 
 - `tests/<Produto>.<Slice>.Tests/` — xUnit. Testa handlers instanciados diretamente (DI manual) contra repositories reais apontados para MongoDB de teste. Nao mocke o banco a menos que a verificacao nao dependa dele.
 - `tests/<Produto>.WebApi.IntegrationTests/` — `WebApplicationFactory<Program>` para testes E2E HTTP.
-- Use `MONGODB_CONNECTION_STRING` apontando para um replica set de teste.
+- No MarkDocs, o MongoDB de teste e um `mongod` efemero (pacote EphemeralMongo, sem Docker), ou o de `MONGODB_TEST_URI`. O armazenamento de objetos e o unico duble (em memoria, ou `ARMAZENAMENTO_PROVEDOR=disco`).
+- Os testes do `MarkDocs.Core` vivem em `MarkDocs.Core/Tests/`, para sair junto com o pacote.
 
 ---
 

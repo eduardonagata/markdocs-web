@@ -93,7 +93,7 @@ public sealed class PaginaPdf
     public (double MinX, double MaxY) Caixa(string trecho)
     {
         var letras = Letras(trecho);
-        return (letras[0].StartBaseLine.X, letras.Max(l => l.GlyphRectangle.Top));
+        return (letras[0].StartBaseLine.X, letras.Max(l => l.BoundingBox.Top));
     }
 
     /// <summary>O corpo, em pontos, com que <paramref name="trecho"/> foi composto.</summary>
