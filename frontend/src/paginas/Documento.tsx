@@ -55,11 +55,10 @@ import {
   useTemplates,
 } from '../api/consultas';
 import type { Ajuste, AtualizarDocumento } from '../api/tipos';
-import { EditorDeTexto, type EditorDeTextoRef } from '../componentes/EditorDeTexto';
+import { EditorMarkdown, type EditorMarkdownRef } from '../componentes/editor/EditorMarkdown';
 import { InspetorDeFormatacao } from '../componentes/InspetorDeFormatacao';
-import { MarkdownRenderizado } from '../componentes/MarkdownRenderizado';
 import { PainelDeImagens } from '../componentes/PainelDeImagens';
-import { SeletorDeModo, Vistas, type Modo } from '../componentes/Vistas';
+import { lerModo, SeletorDeModo, Vistas, type Modo } from '../componentes/Vistas';
 import { VisualizadorPdf } from '../componentes/VisualizadorPdf';
 import { alternativo } from '../util';
 
@@ -106,7 +105,7 @@ export function DocumentoPagina() {
   const estilos = useEstilos();
   const navegar = useNavigate();
   const [parametros, setParametros] = useSearchParams();
-  const modo = (parametros.get('modo') as Modo | null) ?? 'lado-a-lado';
+  const modo = lerModo(parametros.get('modo'));
 
   const { data: documento, error, isLoading } = useDocumento(id);
   const { data: templates } = useTemplates();
@@ -123,7 +122,7 @@ export function DocumentoPagina() {
   const [estado, setEstado] = useState<Estado>('salvo');
   const [dialogo, setDialogo] = useState<'template' | 'excluir' | null>(null);
   const [nomeDoTemplate, setNomeDoTemplate] = useState('');
-  const editor = useRef<EditorDeTextoRef>(null);
+  const editor = useRef<EditorMarkdownRef>(null);
 
   // O texto local nasce do servidor uma vez por documento; depois disso, o
   // que se digita é a fonte, e o servidor só confirma.
@@ -187,13 +186,11 @@ export function DocumentoPagina() {
     retry: false,
   });
 
+  // Uma imagem enviada pelo editor (botão, colar ou arrastar): entra nos
+  // ativos do documento, e o editor cita a referência relativa.
   const enviarImagem = async (arquivo: File) => {
-    try {
-      const imagem = await gravarImagem.mutateAsync(arquivo);
-      return `![${alternativo(imagem.nome)}](${imagem.referencia})`;
-    } catch {
-      return null;
-    }
+    const imagem = await gravarImagem.mutateAsync(arquivo);
+    return imagem.referencia;
   };
 
   if (isLoading) return <div className={estilos.carregando}><Spinner /></div>;
@@ -304,14 +301,25 @@ export function DocumentoPagina() {
         <Vistas
           modo={modo}
           onModo={mudarModo}
-          texto={<EditorDeTexto ref={editor} valor={texto ?? ''} onMudar={setTexto} onImagem={enviarImagem} />}
-          visualizacao={
-            <MarkdownRenderizado
-              markdown={texto ?? ''}
-              base={urls.baseDoDocumento(id)}
-              imagens={documento.imagens}
-              versao={documento.alteradoEm}
-            />
+          texto={
+            texto !== null && (
+              <>
+              {gravarImagem.error && painel !== 'imagens' && (
+                <MessageBar intent="error" className={estilos.erro}>
+                  <MessageBarBody>A imagem não foi enviada: {gravarImagem.error.message}</MessageBarBody>
+                </MessageBar>
+              )}
+              <EditorMarkdown
+                key={documento.id}
+                ref={editor}
+                markdown={texto}
+                onMudar={setTexto}
+                imagens={documento.imagens}
+                versao={documento.alteradoEm}
+                onImagem={enviarImagem}
+              />
+              </>
+            )
           }
           pdf={
             <div className={estilos.pdf}>
@@ -345,7 +353,7 @@ export function DocumentoPagina() {
                 enviando={gravarImagem.isPending}
                 onEnviar={(arquivos) => arquivos.forEach((a) => void gravarImagem.mutateAsync(a).catch(() => undefined))}
                 onInserir={(imagem) => {
-                  if (modo === 'visualizacao' || modo === 'pdf') mudarModo('lado-a-lado');
+                  if (modo === 'pdf') mudarModo('lado-a-lado');
                   editor.current?.inserir(`![${alternativo(imagem.nome)}](${imagem.referencia})`);
                 }}
                 onRemover={(imagem) => removerImagem.mutate(imagem.nome)}

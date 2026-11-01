@@ -26,7 +26,7 @@ export default defineConfig({
         manualChunks: {
           fluent: ['@fluentui/react-components', '@fluentui/react-icons'],
           pdf: ['pdfjs-dist'],
-          markdown: ['react-markdown', 'remark-gfm'],
+          editor: ['@mdxeditor/editor'],
         },
       },
     },

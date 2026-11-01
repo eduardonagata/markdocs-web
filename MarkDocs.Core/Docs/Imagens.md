@@ -100,10 +100,12 @@ e todos os testes transcritos passam sem alteração (`Testes.md`, §8).
   por um caminho que o documento não declare. É uma subseção do endereço do
   documento, de propósito: é contra `/api/documentos/{id}/` que o relativo
   `imagens/<nome>` se resolve.
-- **A tela.** A visualização do Markdown (react-markdown) resolve
-  `imagens/<nome>` contra a base do documento e mostra só as imagens dos ativos;
-  as demais aparecem como o texto alternativo, como no PDF. Colar ou arrastar
-  uma imagem no editor a envia e insere `![…](imagens/<nome>)` no cursor.
+- **A tela.** O editor (MDXEditor) mostra o Markdown já formatado e resolve
+  `imagens/<nome>` pelo endereço do documento (`imagePreviewHandler`), sem
+  reescrever o que o Markdown guarda; só as imagens dos ativos aparecem, e as
+  demais dão lugar a um aviso com o destino citado — no PDF, ao texto
+  alternativo. Enviar, colar ou arrastar uma imagem no editor a grava nos
+  ativos e insere `![…](imagens/<nome>)` no cursor.
 - **O PDF.** O `CompositorDePdf` baixa as imagens dos ativos e as entrega ao
   renderizador junto com os ativos do template.
 - **Aplicar um template** troca a formatação e os ativos de template, e

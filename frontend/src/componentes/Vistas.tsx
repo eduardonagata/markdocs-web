@@ -1,35 +1,35 @@
 import type { ReactNode } from 'react';
 import { makeStyles, mergeClasses, Tab, TabList, tokens, Tooltip } from '@fluentui/react-components';
-import {
-  DocumentPdfRegular,
-  DocumentSplitHintRegular,
-  EyeRegular,
-  TextDescriptionRegular,
-} from '@fluentui/react-icons';
+import { DocumentPdfRegular, DocumentSplitHintRegular, TextDescriptionRegular } from '@fluentui/react-icons';
 import { useEstreito } from '../util';
 
 /**
- * Os três modos de ver o mesmo documento — o Markdown como texto, renderizado,
- * e o PDF — e o lado a lado, que é texto e PDF juntos.
+ * Os modos de ver o mesmo documento — o Markdown (no editor, que já o mostra
+ * formatado) e o PDF — e o lado a lado, que é os dois juntos.
  */
-export type Modo = 'texto' | 'lado-a-lado' | 'visualizacao' | 'pdf';
+export type Modo = 'texto' | 'lado-a-lado' | 'pdf';
 
-type Lente = 'texto' | 'visualizacao' | 'pdf';
+type Lente = 'texto' | 'pdf';
 
 const abertas: Record<Modo, Lente[]> = {
   texto: ['texto'],
   'lado-a-lado': ['texto', 'pdf'],
-  visualizacao: ['visualizacao'],
   pdf: ['pdf'],
 };
 
-const rotulos: Record<Lente, string> = { texto: 'Markdown', visualizacao: 'Visualização', pdf: 'PDF' };
+const rotulos: Record<Lente, string> = { texto: 'Markdown', pdf: 'PDF' };
 
 const icones: Record<Lente, ReactNode> = {
   texto: <TextDescriptionRegular />,
-  visualizacao: <EyeRegular />,
   pdf: <DocumentPdfRegular />,
 };
+
+/** Um modo vindo da URL. O antigo `visualizacao` é o editor, que agora já mostra o Markdown formatado. */
+export function lerModo(valor: string | null): Modo {
+  if (valor === 'texto' || valor === 'pdf' || valor === 'lado-a-lado') return valor;
+  if (valor === 'visualizacao') return 'texto';
+  return 'lado-a-lado';
+}
 
 const useEstilos = makeStyles({
   raiz: {
@@ -105,7 +105,7 @@ export function SeletorDeModo({ modo, onModo }: PropsSeletor) {
   const rotulo = (texto: string) => (estreito ? undefined : texto);
   return (
     <TabList size="small" selectedValue={modo} onTabSelect={(_, d) => onModo(d.value as Modo)}>
-      <Tooltip content="Markdown como texto" relationship="description">
+      <Tooltip content="O Markdown, no editor" relationship="description">
         <Tab value="texto" icon={<TextDescriptionRegular />} aria-label="Markdown">{rotulo('Markdown')}</Tab>
       </Tooltip>
       {!estreito && (
@@ -113,9 +113,6 @@ export function SeletorDeModo({ modo, onModo }: PropsSeletor) {
           <Tab value="lado-a-lado" icon={<DocumentSplitHintRegular />}>Lado a lado</Tab>
         </Tooltip>
       )}
-      <Tooltip content="Markdown renderizado" relationship="description">
-        <Tab value="visualizacao" icon={<EyeRegular />} aria-label="Visualização">{rotulo('Visualização')}</Tab>
-      </Tooltip>
       <Tooltip content="O PDF composto" relationship="description">
         <Tab value="pdf" icon={<DocumentPdfRegular />} aria-label="PDF">{rotulo('PDF')}</Tab>
       </Tooltip>
@@ -125,25 +122,24 @@ export function SeletorDeModo({ modo, onModo }: PropsSeletor) {
 
 interface Props extends PropsSeletor {
   texto: ReactNode;
-  visualizacao: ReactNode;
   pdf: ReactNode;
 }
 
 /**
- * As três lentes lado a lado, numa ordem fixa — texto, visualização, PDF. O
- * modo decide quais estão abertas; as fechadas viram um trilho estreito, que
- * abre a lente com um clique. As três ficam montadas: trocar de modo não
- * perde o cursor do editor nem redesenha o PDF.
+ * As duas lentes lado a lado, numa ordem fixa — o Markdown e o PDF. O modo
+ * decide quais estão abertas; a fechada vira um trilho estreito, que abre a
+ * lente com um clique. As duas ficam montadas: trocar de modo não perde o
+ * cursor do editor nem redesenha o PDF.
  */
-export function Vistas({ modo, onModo, texto, visualizacao, pdf }: Props) {
+export function Vistas({ modo, onModo, texto, pdf }: Props) {
   const estilos = useEstilos();
   const estreito = useEstreito();
   if (estreito && modo === 'lado-a-lado') modo = 'texto';
-  const conteudos: Record<Lente, ReactNode> = { texto, visualizacao, pdf };
+  const conteudos: Record<Lente, ReactNode> = { texto, pdf };
 
   return (
     <div className={estilos.raiz}>
-      {(['texto', 'visualizacao', 'pdf'] as Lente[]).map((lente) => {
+      {(['texto', 'pdf'] as Lente[]).map((lente) => {
         const aberta = abertas[modo].includes(lente);
         return (
           <section key={lente} className={mergeClasses(estilos.lente, aberta && estilos.aberta)} aria-label={rotulos[lente]}>

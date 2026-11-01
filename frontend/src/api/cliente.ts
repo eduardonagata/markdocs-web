@@ -67,6 +67,4 @@ export const api = {
 export const urls = {
   pdfDoDocumento: (id: string, versao: string) => `/api/documentos/${id}/pdf?v=${encodeURIComponent(versao)}`,
   amostraDoTemplate: (id: string) => `/api/templates/${id}/amostra`,
-  /** A base contra a qual o Markdown do documento resolve `imagens/<nome>`. */
-  baseDoDocumento: (id: string) => `/api/documentos/${id}/`,
 };

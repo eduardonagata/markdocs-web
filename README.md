@@ -1,7 +1,9 @@
 # MarkDocs
 
 Documentos de negócio a partir de Markdown. Escolhe-se um template, cola-se o
-Markdown, e o documento existe — com o PDF ao lado. A formatação é editada por
+Markdown, e o documento existe — com o PDF ao lado. O Markdown é editado no
+[MDXEditor](https://github.com/mdx-editor/editor), que já o mostra formatado
+(e, num clique, como texto). A formatação é editada por
 controles (papel, margens, tipografia, títulos, tabela), um documento formatado
 vira template para os próximos, e as imagens que o Markdown cita aparecem na
 tela e no papel.
