@@ -10,7 +10,8 @@ Este repositorio nasceu do template de vertical slices; as politicas abaixo vale
 - **Os testes do MarkDocs.Core sao os do NotiqTypst, com as mesmas assercoes** (`MarkDocs.Core/Docs/Testes.md`). Comportamento que muda, muda junto com o teste e com esse documento, no mesmo commit — e uma mudanca que nao veio do NotiqTypst e anunciada como divergencia (como a extensao de imagens, `MarkDocs.Core/Docs/Imagens.md`).
 - **`MarkDocs.Abstractions` e minimo**, como a especificacao `Docs/especificacao-inicial/001-modelo-de-dados-web.md`. Regra de aplicacao vai para o slice (`MarkDocs.Documentos`), nao para la.
 - **O frontend (`frontend/`) e independente dos slices**: fala so com `/api/*`. Quem o hospeda e `MarkDocs.WebUi` (`app.MapWebUi()`).
-- **Configuracao por variaveis de ambiente planas** (`DOCUMENTOS_*`, `MINIO_*`, `ARMAZENAMENTO_*`), lidas no `Add<Slice>Module` e documentadas no README e no `.env.example`.
+- **Configuracao por variaveis de ambiente planas** (`DOCUMENTOS_*`, `MINIO_*`, `ARMAZENAMENTO_*`, `AGENTE_*`), lidas no `Add<Slice>Module` e documentadas no README e no `.env.example`.
+- **O assistente** (`Docs/decisoes-arquitetura/EI-001-assistente-agentico-ag-ui.md`) mora no slice `MarkDocs.Documentos`: o Microsoft Agent Framework fica confinado a ele, e a WebApi so chama `MapAgente`. Ferramentas do backend **so leem**; tudo o que altera um documento e ferramenta da tela (AG-UI, executada no navegador), e o que grava pede aprovacao do usuario. Ferramenta nova da tela tambem ganha um rotulo em `frontend/src/assistente/rotulos.ts`.
 
 ## Organizacao do codigo
 

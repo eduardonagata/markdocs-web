@@ -27,6 +27,7 @@ import {
   UndoRedo,
   usePublisher,
   viewMode$,
+  diffMarkdown$,
   type MDXEditorMethods,
   type ViewMode,
 } from '@mdxeditor/editor';
@@ -53,6 +54,12 @@ export interface EditorMarkdownRef {
   /** Insere um trecho de Markdown no cursor. */
   inserir: (markdown: string) => void;
   focar: () => void;
+  /** O trecho selecionado, em Markdown; vazio sem seleção. */
+  selecao: () => string;
+  /** O documento formatado, as diferenças em relação ao salvo, ou o Markdown como texto. */
+  modo: (modo: ViewMode) => void;
+  /** A folha renderizada (onde o assistente destaca o que alterou). */
+  folha: () => HTMLElement | null;
 }
 
 interface Props {
@@ -65,22 +72,26 @@ interface Props {
   versao: string;
   /** Uma imagem enviada, colada ou arrastada: grava e devolve a referência `imagens/<nome>`. */
   onImagem: (arquivo: File) => Promise<string>;
+  /** A versão gravada no servidor: é contra ela que o modo de diferenças compara. */
+  salvo: string;
 }
 
 /** O que só existe dentro do contexto do editor (o "realm" do MDXEditor), exposto a quem está fora. */
 interface Ponte {
   mudarModo: (modo: ViewMode) => void;
+  mudarBase: (markdown: string) => void;
 }
 
 function PonteDoEditor({ ponte }: { ponte: MutableRefObject<Ponte | null> }) {
   const mudarModo = usePublisher(viewMode$);
-  ponte.current = { mudarModo };
+  const mudarBase = usePublisher(diffMarkdown$);
+  ponte.current = { mudarModo, mudarBase };
   return null;
 }
 
 function BarraDeFerramentas({ ponte }: { ponte: MutableRefObject<Ponte | null> }) {
   return (
-    <DiffSourceToggleWrapper options={['rich-text', 'source']}>
+    <DiffSourceToggleWrapper options={['rich-text', 'diff', 'source']}>
       <PonteDoEditor ponte={ponte} />
       <UndoRedo />
       <Separator />
@@ -111,11 +122,12 @@ function BarraDeFerramentas({ ponte }: { ponte: MutableRefObject<Ponte | null> }
  * Markdown.
  */
 export const EditorMarkdown = forwardRef<EditorMarkdownRef, Props>(function EditorMarkdown(
-  { markdown, onMudar, imagens, versao, onImagem },
+  { markdown, onMudar, imagens, versao, onImagem, salvo },
   ref,
 ) {
   const estilos = useEstilos();
   const editor = useRef<MDXEditorMethods>(null);
+  const raiz = useRef<HTMLDivElement>(null);
   const ponte = useRef<Ponte | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -123,6 +135,11 @@ export const EditorMarkdown = forwardRef<EditorMarkdownRef, Props>(function Edit
   useEffect(() => {
     if (erro) ponte.current?.mudarModo('source');
   }, [erro]);
+
+  // O modo de diferenças compara com o que está gravado.
+  useEffect(() => {
+    ponte.current?.mudarBase(salvo);
+  }, [salvo]);
 
   // Os plugins são lidos uma vez, na montagem; o que muda (as imagens, a
   // versão, o envio) é lido por referência.
@@ -136,6 +153,9 @@ export const EditorMarkdown = forwardRef<EditorMarkdownRef, Props>(function Edit
       editor.current?.focus(() => editor.current?.insertMarkdown(texto));
     },
     focar: () => editor.current?.focus(),
+    selecao: () => editor.current?.getSelectionMarkdown() ?? '',
+    modo: (modo) => ponte.current?.mudarModo(modo),
+    folha: () => raiz.current?.querySelector<HTMLElement>('.folha') ?? null,
   }));
 
   const plugins = useMemo(
@@ -163,7 +183,7 @@ export const EditorMarkdown = forwardRef<EditorMarkdownRef, Props>(function Edit
       codeBlockPlugin({ defaultCodeBlockLanguage: '' }),
       codeMirrorPlugin({ codeBlockLanguages: { '': 'Texto', json: 'JSON', xml: 'XML', sql: 'SQL', js: 'JavaScript' } }),
       markdownShortcutPlugin(),
-      diffSourcePlugin({ viewMode: 'rich-text' }),
+      diffSourcePlugin({ viewMode: 'rich-text', diffMarkdown: salvo, readOnlyDiff: true }),
       toolbarPlugin({ toolbarContents: () => <BarraDeFerramentas ponte={ponte} /> }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -171,7 +191,7 @@ export const EditorMarkdown = forwardRef<EditorMarkdownRef, Props>(function Edit
   );
 
   return (
-    <div className={estilos.raiz}>
+    <div ref={raiz} className={estilos.raiz}>
       {erro && (
         <MessageBar intent="warning" layout="multiline" className={estilos.aviso}>
           <MessageBarBody>

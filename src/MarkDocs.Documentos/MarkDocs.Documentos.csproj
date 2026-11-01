@@ -20,6 +20,24 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      O agente do assistente (Docs/decisoes-arquitetura/EI-001): Microsoft
+      Agent Framework, exposto em AG-UI. A dependência fica confinada a este
+      slice; o MarkDocs.WebApi só chama MapAgente (Hosting/). O pacote de
+      hosting AG-UI está em preview porque o protocolo ainda evolui; ao
+      atualizar, manter os Microsoft.Agents.AI* alinhados entre si.
+
+      O modelo vem pelo SDK da OpenAI, tanto da OpenAI direto quanto do
+      Microsoft Foundry (a API v1 compatível); Azure.Identity só entra quando
+      o Foundry é usado sem chave (Entra ID).
+    -->
+    <PackageReference Include="Microsoft.Agents.AI" Version="1.25.0" />
+    <PackageReference Include="Microsoft.Agents.AI.Hosting.AGUI.AspNetCore" Version="1.25.0-preview.261014.1" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.10.1" />
+    <PackageReference Include="Azure.Identity" Version="1.21.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Configuration, DI, Options, Logging e IHostedService do runtime compartilhado. -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
@@ -33,6 +51,7 @@
     <!-- As fontes são do app, não do MarkDocs.Core: o motor só usa o que entregamos. -->
     <EmbeddedResource Include="Infrastructure\Fontes\*.otf" LogicalName="MarkDocs.Documentos.Fontes.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Infrastructure\TemplatesDeFabrica\*.json" LogicalName="MarkDocs.Documentos.TemplatesDeFabrica.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Application\Agente\Instrucoes.md" LogicalName="MarkDocs.Documentos.Agente.Instrucoes.md" />
   </ItemGroup>
 
   <ItemGroup>

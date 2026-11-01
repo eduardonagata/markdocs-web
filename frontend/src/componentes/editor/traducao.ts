@@ -48,7 +48,7 @@ const rotulos: Record<string, string> = {
   'toolbar.bold': 'Negrito',
   'toolbar.bulletedList': 'Lista',
   'toolbar.codeBlock': 'Bloco de código',
-  'toolbar.diffMode': 'Diferenças em relação ao salvo',
+  'toolbar.diffMode': 'O que mudou desde a última gravação',
   'toolbar.image': 'Inserir imagem',
   'toolbar.inlineCode': 'Código',
   'toolbar.italic': 'Itálico',

@@ -1,4 +1,4 @@
-import type { AtualizarDocumento, Documento, DocumentoResumo, Imagem, Template } from './tipos';
+import type { AtualizarDocumento, Documento, DocumentoResumo, Imagem, StatusDoAgente, Template } from './tipos';
 
 /** Uma resposta de erro da API, com a mensagem que ela devolveu. */
 export class ErroDaApi extends Error {
@@ -62,6 +62,8 @@ export const api = {
 
   criarTemplate: (documentoId: string, nome: string) =>
     pedir<Template>('/api/templates', { method: 'POST', body: JSON.stringify({ documentoId, nome }) }),
+
+  statusDoAgente: () => pedir<StatusDoAgente>('/api/agente/status'),
 };
 
 export const urls = {

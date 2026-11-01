@@ -80,3 +80,11 @@ export interface AtualizarDocumento {
   templateId?: string;
   ajustes?: Ajuste[];
 }
+
+/** Se o assistente está configurado no servidor — ou o que falta para estar. */
+export interface StatusDoAgente {
+  disponivel: boolean;
+  provedor: string;
+  modelo: string | null;
+  oQueFalta: string | null;
+}

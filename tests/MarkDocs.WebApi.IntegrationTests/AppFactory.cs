@@ -8,7 +8,7 @@ namespace MarkDocs.WebApi.IntegrationTests;
 /// O app inteiro, pelo Host de verdade: MongoDB efêmero (ou <c>MONGODB_TEST_URI</c>)
 /// e o armazenamento de objetos em disco, numa pasta temporária.
 /// </summary>
-public sealed class AppFactory : WebApplicationFactory<Program>
+public class AppFactory : WebApplicationFactory<Program>
 {
     private readonly IMongoRunner? _runner;
     private readonly string _uri;

@@ -9,7 +9,7 @@ import { useEstreito } from '../util';
  */
 export type Modo = 'texto' | 'lado-a-lado' | 'pdf';
 
-type Lente = 'texto' | 'pdf';
+export type Lente = 'texto' | 'pdf';
 
 const abertas: Record<Modo, Lente[]> = {
   texto: ['texto'],
@@ -123,6 +123,8 @@ export function SeletorDeModo({ modo, onModo }: PropsSeletor) {
 interface Props extends PropsSeletor {
   texto: ReactNode;
   pdf: ReactNode;
+  /** A lente em que o assistente está agindo agora: ganha a moldura dele. */
+  agindo?: Lente | null;
 }
 
 /**
@@ -131,7 +133,7 @@ interface Props extends PropsSeletor {
  * lente com um clique. As duas ficam montadas: trocar de modo não perde o
  * cursor do editor nem redesenha o PDF.
  */
-export function Vistas({ modo, onModo, texto, pdf }: Props) {
+export function Vistas({ modo, onModo, texto, pdf, agindo = null }: Props) {
   const estilos = useEstilos();
   const estreito = useEstreito();
   if (estreito && modo === 'lado-a-lado') modo = 'texto';
@@ -142,7 +144,13 @@ export function Vistas({ modo, onModo, texto, pdf }: Props) {
       {(['texto', 'pdf'] as Lente[]).map((lente) => {
         const aberta = abertas[modo].includes(lente);
         return (
-          <section key={lente} className={mergeClasses(estilos.lente, aberta && estilos.aberta)} aria-label={rotulos[lente]}>
+          <section
+            key={lente}
+            className={mergeClasses(estilos.lente, aberta && estilos.aberta, agindo === lente && 'assistente-agindo')}
+            data-rotulo="O assistente está editando"
+            aria-label={rotulos[lente]}
+            aria-busy={agindo === lente}
+          >
             <div className={mergeClasses(estilos.conteudo, !aberta && estilos.escondido)} aria-hidden={!aberta}>
               {conteudos[lente]}
             </div>
