@@ -1,6 +1,10 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Button, makeStyles, Tab, TabList, Text, tokens } from '@fluentui/react-components';
-import { AddRegular } from '@fluentui/react-icons';
+import { Button, makeStyles, mergeClasses, Tab, TabList, Text, tokens, ToggleButton, Tooltip } from '@fluentui/react-components';
+import { AddRegular, SparkleRegular } from '@fluentui/react-icons';
+import { AssistenteProvider, useAssistente } from '../assistente/Assistente';
+import { atalho } from '../assistente/atalho';
+import { FerramentasGlobais } from '../assistente/FerramentasGlobais';
+import { PainelDoAssistente } from '../assistente/Painel';
 import { useEstreito } from '../util';
 
 const useEstilos = makeStyles({
@@ -41,6 +45,22 @@ const useEstilos = makeStyles({
     boxSizing: 'border-box',
   },
   espaco: { flex: 1 },
+  botaoDoAssistente: { position: 'relative' },
+  // O assistente trabalhando, ou esperando uma aprovação com o painel fechado.
+  sinal: {
+    position: 'absolute',
+    top: '5px',
+    right: '5px',
+    width: '7px',
+    height: '7px',
+    borderRadius: '50%',
+    backgroundColor: 'var(--assistente)',
+  },
+  pulsando: {
+    animationName: { '0%': { opacity: 1 }, '50%': { opacity: 0.25 }, '100%': { opacity: 1 } },
+    animationDuration: '1.2s',
+    animationIterationCount: 'infinite',
+  },
   conteudo: {
     flex: 1,
     minHeight: 0,
@@ -52,8 +72,40 @@ const useEstilos = makeStyles({
   },
 });
 
-/** O topo do app — a marca, as duas páginas e o "novo documento" — e a página aberta. */
+/** O botão do assistente no topo: abre e fecha o painel, e sinaliza quando ele trabalha ou espera você. */
+function BotaoDoAssistente({ compacto }: { compacto: boolean }) {
+  const estilos = useEstilos();
+  const a = useAssistente();
+  const esperando = a.aprovacoes.size > 0 && !a.aberto;
+  return (
+    <Tooltip content={`Assistente (${atalho})`} relationship="label">
+      <ToggleButton
+        className={estilos.botaoDoAssistente}
+        appearance="subtle"
+        icon={<SparkleRegular />}
+        checked={a.aberto}
+        onClick={a.alternar}
+        aria-label="Assistente"
+      >
+        {compacto ? undefined : 'Assistente'}
+        {(a.rodando || esperando) && <span className={mergeClasses(estilos.sinal, a.rodando && !esperando && estilos.pulsando)} />}
+      </ToggleButton>
+    </Tooltip>
+  );
+}
+
+/** O topo do app — a marca, as duas páginas e o "novo documento" — e a página aberta, sob o assistente. */
 export function Casca() {
+  return (
+    <AssistenteProvider>
+      <FerramentasGlobais />
+      <Moldura />
+      <PainelDoAssistente />
+    </AssistenteProvider>
+  );
+}
+
+function Moldura() {
   const estilos = useEstilos();
   const navegar = useNavigate();
   const { pathname } = useLocation();
@@ -76,6 +128,7 @@ export function Casca() {
           <Tab value="templates">Templates</Tab>
         </TabList>
         <div className={estilos.espaco} />
+        <BotaoDoAssistente compacto={estreito} />
         <Button appearance="primary" icon={<AddRegular />} aria-label="Novo documento" onClick={() => navegar('/documentos/novo')}>
           {estreito ? undefined : 'Novo documento'}
         </Button>

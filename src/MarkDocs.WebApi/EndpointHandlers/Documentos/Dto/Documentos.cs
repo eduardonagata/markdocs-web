@@ -31,7 +31,17 @@ public sealed record DocumentoResponse(
     DateTimeOffset CriadoEm,
     DateTimeOffset AlteradoEm,
     IReadOnlyList<EixoResponse> Eixos,
-    IReadOnlyList<ImagemResponse> Imagens);
+    IReadOnlyList<ImagemResponse> Imagens,
+    TimbresResponse Timbres);
+
+/// <summary>
+/// O papel timbrado que vale na primeira página e nas demais (o mesmo, quando
+/// é de todas as páginas), ou <c>null</c> onde não há.
+/// </summary>
+public sealed record TimbresResponse(TimbreResponse? Primeira, TimbreResponse? Demais);
+
+/// <summary>Um timbre: o nome do ativo e o endereço da imagem.</summary>
+public sealed record TimbreResponse(string Nome, string Url);
 
 /// <summary>
 /// Uma imagem do documento. <c>Referencia</c> é o que o Markdown escreve

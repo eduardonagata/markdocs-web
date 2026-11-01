@@ -14,3 +14,6 @@ public sealed class ImagemNaoEncontradaException(string nome)
 
 public sealed class ObjetoNaoEncontradoException(string chave)
     : NaoEncontradoException($"O objeto “{chave}” não está no armazenamento.");
+
+public sealed class TimbreNaoEncontradoException(string paginas)
+    : NaoEncontradoException($"O documento não tem papel timbrado para “{paginas}”.");

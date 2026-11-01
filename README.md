@@ -1,7 +1,9 @@
 # MarkDocs
 
 Documentos de negócio a partir de Markdown. Escolhe-se um template, cola-se o
-Markdown, e o documento existe — com o PDF ao lado. A formatação é editada por
+Markdown, e o documento existe — com o PDF ao lado. O Markdown é editado no
+[MDXEditor](https://github.com/mdx-editor/editor), que já o mostra formatado
+(e, num clique, como texto). A formatação é editada por
 controles (papel, margens, tipografia, títulos, tabela), um documento formatado
 vira template para os próximos, e as imagens que o Markdown cita aparecem na
 tela e no papel.
@@ -39,6 +41,19 @@ O PDF é composto pelo **MarkDocs.Core**, a transcrição .NET do NotiqTypst
    documento aparecem — na tela, resolvidas contra `/api/documentos/{id}/`; no
    PDF, entregues ao Acervo do Typst; numa exportação, ao lado do `.md`. Ver
    [MarkDocs.Core/Docs/Imagens.md](MarkDocs.Core/Docs/Imagens.md).
+6. **Papel timbrado.** Na aba *Timbre* da gaveta do documento, uma imagem vira
+   o fundo das páginas — de todas, só da primeira, ou das demais. Ela ocupa a
+   página inteira, como está (o app não a ajusta): a tela mostra o tamanho do
+   papel e avisa quando a proporção da imagem é outra. O timbre é ativo de
+   template — vai junto quando o documento vira template.
+7. **Assistente.** Um agente conversacional, em qualquer tela (botão *Assistente*
+   ou ⌘J / Ctrl+J), que **age sobre a tela**: edita o documento aberto no próprio
+   editor — o que ele mudou fica destacado até você manter ou desfazer —, e
+   tudo o que grava no servidor (salvar, criar documento, aplicar template)
+   pede sua aprovação. O documento aberto e o trecho selecionado são o
+   contexto. Microsoft Agent Framework + AG-UI; modelo da OpenAI ou do
+   Microsoft Foundry. Ver
+   [Docs/decisoes-arquitetura/EI-001](Docs/decisoes-arquitetura/EI-001-assistente-agentico-ag-ui.md).
 
 ---
 
@@ -61,13 +76,14 @@ src/
 ├── MarkDocs.WebApi/               a camada HTTP: IEndpointRouteHandler + DTOs
 ├── MarkDocs.WebUi/                a hospedagem do frontend (wwwroot + fallback do SPA)
 ├── MarkDocs.Abstractions/         o modelo da especificação 001: IDocumento, Formatacao, Template
-└── MarkDocs.Documentos/           o slice: documentos, templates, armazenamento, composição
+└── MarkDocs.Documentos/           o slice: documentos, templates, armazenamento, composição, o agente
 tests/
 ├── MarkDocs.Abstractions.Tests/   serialização JSON/BSON e Aplicar ≡ o Core
 ├── MarkDocs.Documentos.Tests/     commands e queries contra um MongoDB real
 └── MarkDocs.WebApi.IntegrationTests/  a API ponta a ponta (WebApplicationFactory)
 frontend/                          React + TypeScript + Fluent UI v9 (fala só com /api)
 Docs/especificacao-inicial/        a especificação do modelo de dados
+Docs/decisoes-arquitetura/         as decisões (EI-001: o assistente)
 ```
 
 ```
@@ -83,7 +99,7 @@ Docs/especificacao-inicial/        a especificação do modelo de dados
 |---|---|
 | **MarkDocs.Core** | Não conhece o app, o MongoDB nem o ASP.NET. API: `RegistroDeGeradores.Carregar(familia, json, ativos)` → `TemplateCarregado` (com os `Eixos`); `RenderizadorPDF.Pdf(markdown, template[, imagens])`. Ver [MarkDocs.Core/README.md](MarkDocs.Core/README.md). |
 | **MarkDocs.Abstractions** | Mínimo, como a [especificação 001](Docs/especificacao-inicial/001-modelo-de-dados-web.md): `IDocumento`, `ReferenciaDeAtivo`, `Formatacao` + `FormatacaoDocumentoDeNegocio`, `Template`, `Medida`/`Cor`/enums com os conversores JSON e BSON, `SerializacaoDaFormatacao`. |
-| **MarkDocs.Documentos** | `Documento` (implementa `IDocumento`) e `TemplateDeDocumento` no MongoDB; o adaptador `IArmazenamentoDeObjetos` (MinIO ou disco); o `CompositorDePdf`; os commands/queries; as fontes e os templates de fábrica. |
+| **MarkDocs.Documentos** | `Documento` (implementa `IDocumento`) e `TemplateDeDocumento` no MongoDB; o adaptador `IArmazenamentoDeObjetos` (MinIO ou disco); o `CompositorDePdf`; os commands/queries; as fontes e os templates de fábrica; o agente do assistente (Agent Framework, exposto em AG-UI por `MapAgente`). |
 | **MarkDocs.WebApi** | Traduz HTTP ↔ MediatR e exceções ↔ status. Nenhuma regra de negócio. |
 | **MarkDocs.WebUi** | Serve o `wwwroot/` do frontend e devolve `index.html` para as rotas do SPA; `/api/*` sem handler é 404. |
 | **MarkDocs** | `Program.cs`: `AddDocumentosModule`, pipeline, `MapEndpoints(typeof(WebApiMarker).Assembly)`, `MapWebUi()`. |
@@ -120,9 +136,14 @@ classe nova e um caso no `AddDocumentosModule`.
 | `POST` | `/api/documentos/{id}/imagens` | envia uma imagem (`multipart/form-data`, campo `arquivo`) |
 | `GET` | `/api/documentos/{id}/imagens/{nome}` | uma imagem dos ativos — e só dos ativos |
 | `DELETE` | `/api/documentos/{id}/imagens/{nome}` | remove uma imagem |
+| `PUT` | `/api/documentos/{id}/timbre/{paginas}` | o papel timbrado (`multipart/form-data`, campo `arquivo`) em `todas`, na `primeira` ou nas `demais`; devolve o documento |
+| `GET` | `/api/documentos/{id}/timbre/{paginas}` | a imagem do timbre que vale na `primeira` ou nas `demais` |
+| `DELETE` | `/api/documentos/{id}/timbre/{paginas}` | tira o timbre; devolve o documento |
 | `GET` | `/api/templates` | lista os templates |
 | `POST` | `/api/templates` | cria um template a partir de um documento formatado: `{ documentoId, nome }` |
 | `GET` | `/api/templates/{id}/amostra` | um PDF de amostra com a formatação do template |
+| `POST` | `/api/agente` | o assistente, em [AG-UI](https://docs.ag-ui.com/) (SSE); 503 sem configuração |
+| `GET` | `/api/agente/status` | se o assistente está configurado: `{ disponivel, provedor, modelo, oQueFalta }` |
 | `GET` | `/api/version` | saúde |
 
 Erros voltam como `{ "mensagem": "…" }`: 404 (não existe), 400 (entrada
@@ -168,6 +189,10 @@ no ambiente do processo.
 | `MINIO_USAR_SSL` | `false` | `true` para HTTPS |
 | `MINIO_REGIAO` | — | opcional; S3 e alguns provedores exigem |
 | `ARMAZENAMENTO_DIRETORIO` | `dados/objetos` | a pasta, quando o provedor é `disco` |
+| `AGENTE_PROVEDOR` | `openai` | o modelo do assistente: `openai` (ou um serviço compatível em `AGENTE_ENDPOINT`) ou `foundry` (Microsoft Foundry) |
+| `AGENTE_MODELO` | — | OpenAI: o id do modelo; Foundry: o nome da implantação. Sem ele, o app sobe sem assistente |
+| `AGENTE_CHAVE_API` | — | obrigatória na OpenAI; no Foundry, sem ela a autenticação é por Entra ID |
+| `AGENTE_ENDPOINT` | — | Foundry: o endereço do recurso (obrigatório); OpenAI: um endereço compatível (opcional) |
 | `CORS_ALLOWED_ORIGINS` | — | origens, separadas por vírgula, se o frontend for servido de outro host |
 | `ASPNETCORE_URLS` | `http://localhost:5280` (dev) | onde o app escuta (`http://+:8080` no Docker) |
 | `ASPNETCORE_ENVIRONMENT` | `Production` | `Development` liga o Swagger e o SpaProxy |
@@ -213,8 +238,8 @@ dotnet test MarkDocs.sln
 |---|---|
 | `MarkDocs.Core/Tests/MarkDocs.Core.Tests` | os testes do NotiqTypst transcritos — as mesmas asserções — e os da extensão de imagens ([Docs/Testes.md](MarkDocs.Core/Docs/Testes.md)) |
 | `tests/MarkDocs.Abstractions.Tests` | ida e volta JSON ↔ BSON dos templates de fábrica; `Formatacao.Aplicar` produz o mesmo template que `ComAjustes` do Core, para cada eixo |
-| `tests/MarkDocs.Documentos.Tests` | os handlers contra um MongoDB real |
-| `tests/MarkDocs.WebApi.IntegrationTests` | a API ponta a ponta, pelo Host |
+| `tests/MarkDocs.Documentos.Tests` | os handlers contra um MongoDB real; a configuração e as ferramentas de leitura do agente |
+| `tests/MarkDocs.WebApi.IntegrationTests` | a API ponta a ponta, pelo Host; a borda AG-UI do assistente, com um modelo roteirizado |
 
 Os testes que tocam o MongoDB sobem um `mongod` efêmero (o binário vem no
 pacote EphemeralMongo; não precisa de Docker) — ou usam `MONGODB_TEST_URI`.

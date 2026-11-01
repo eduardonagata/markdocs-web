@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useBlocker, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   Button,
@@ -39,6 +39,7 @@ import {
   CheckmarkRegular,
   DeleteRegular,
   DocumentCopyRegular,
+  DocumentHeaderFooterRegular,
   ImageMultipleRegular,
   MoreHorizontalRegular,
   PaintBrushRegular,
@@ -50,16 +51,23 @@ import {
   useCriarTemplate,
   useDocumento,
   useGravarImagem,
+  useGravarTimbre,
   useRemoverDocumento,
   useRemoverImagem,
+  useRemoverTimbre,
   useTemplates,
 } from '../api/consultas';
-import type { Ajuste, AtualizarDocumento } from '../api/tipos';
-import { EditorDeTexto, type EditorDeTextoRef } from '../componentes/EditorDeTexto';
+import type { Ajuste, AtualizarDocumento, Documento } from '../api/tipos';
+import { useAssistente } from '../assistente/Assistente';
+import { apagarDestaques, destacar, mostrar } from '../assistente/marcas';
+import { useAssistenteNoDocumento } from '../assistente/useAssistenteNoDocumento';
+import { BarraDeRevisao } from '../componentes/assistente/BarraDeRevisao';
+import { PerguntarSobreSelecao } from '../componentes/assistente/PerguntarSobreSelecao';
+import { EditorMarkdown, type EditorMarkdownRef } from '../componentes/editor/EditorMarkdown';
 import { InspetorDeFormatacao } from '../componentes/InspetorDeFormatacao';
-import { MarkdownRenderizado } from '../componentes/MarkdownRenderizado';
 import { PainelDeImagens } from '../componentes/PainelDeImagens';
-import { SeletorDeModo, Vistas, type Modo } from '../componentes/Vistas';
+import { PainelDoTimbre } from '../componentes/PainelDoTimbre';
+import { lerModo, SeletorDeModo, Vistas, type Modo } from '../componentes/Vistas';
 import { VisualizadorPdf } from '../componentes/VisualizadorPdf';
 import { alternativo } from '../util';
 
@@ -89,10 +97,18 @@ const useEstilos = makeStyles({
   gaveta: { borderLeft: `1px solid ${tokens.colorNeutralStroke1}`, backgroundColor: tokens.colorNeutralBackground1 },
   cabecalhoDaGaveta: { borderBottom: `1px solid ${tokens.colorNeutralStroke2}`, paddingBottom: tokens.spacingVerticalS },
   carregando: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  lenteDoTexto: { position: 'relative', minHeight: '100%', display: 'flex', flexDirection: 'column' },
 });
 
-type Painel = 'formatacao' | 'imagens' | null;
+type Painel = 'formatacao' | 'timbre' | 'imagens' | null;
 type Estado = 'salvo' | 'salvando' | 'erro';
+
+/** As alterações do assistente na tela, ainda não salvas: o texto de antes e o que ele escreveu. */
+interface Revisao {
+  original: string;
+  trechos: string[];
+  edicoes: number;
+}
 
 /** Junta duas alterações pendentes: a mais nova vence, e os ajustes se somam por eixo. */
 function juntar(a: AtualizarDocumento, b: AtualizarDocumento): AtualizarDocumento {
@@ -106,7 +122,7 @@ export function DocumentoPagina() {
   const estilos = useEstilos();
   const navegar = useNavigate();
   const [parametros, setParametros] = useSearchParams();
-  const modo = (parametros.get('modo') as Modo | null) ?? 'lado-a-lado';
+  const modo = lerModo(parametros.get('modo'));
 
   const { data: documento, error, isLoading } = useDocumento(id);
   const { data: templates } = useTemplates();
@@ -115,6 +131,8 @@ export function DocumentoPagina() {
   const criarTemplate = useCriarTemplate();
   const gravarImagem = useGravarImagem(id);
   const removerImagem = useRemoverImagem(id);
+  const gravarTimbre = useGravarTimbre(id);
+  const removerTimbre = useRemoverTimbre(id);
 
   const [texto, setTexto] = useState<string | null>(null);
   const [titulo, setTitulo] = useState('');
@@ -123,7 +141,11 @@ export function DocumentoPagina() {
   const [estado, setEstado] = useState<Estado>('salvo');
   const [dialogo, setDialogo] = useState<'template' | 'excluir' | null>(null);
   const [nomeDoTemplate, setNomeDoTemplate] = useState('');
-  const editor = useRef<EditorDeTextoRef>(null);
+  const [revisao, setRevisao] = useState<Revisao | null>(null);
+  const editor = useRef<EditorMarkdownRef>(null);
+  const assistente = useAssistente();
+  const revisaoRef = useRef(revisao);
+  revisaoRef.current = revisao;
 
   // O texto local nasce do servidor uma vez por documento; depois disso, o
   // que se digita é a fonte, e o servidor só confirma.
@@ -138,7 +160,9 @@ export function DocumentoPagina() {
   }, [documento]);
 
   // ─── Salvar: uma gravação por vez, juntando o que chegar no meio ─────────
+  type Espera = { resolver: (d: Documento) => void; rejeitar: (e: unknown) => void };
   const pendente = useRef<AtualizarDocumento | null>(null);
+  const esperando = useRef<Espera[]>([]);
   const emVoo = useRef(false);
   const atualizarRef = useRef(atualizar.mutateAsync);
   atualizarRef.current = atualizar.mutateAsync;
@@ -146,15 +170,19 @@ export function DocumentoPagina() {
   const despachar = useCallback(async () => {
     if (emVoo.current || !pendente.current) return;
     const alteracao = pendente.current;
+    const quem = esperando.current;
     pendente.current = null;
+    esperando.current = [];
     emVoo.current = true;
     setEstado('salvando');
     try {
       const salvo = await atualizarRef.current(alteracao);
       if (alteracao.titulo !== undefined) setTitulo(salvo.titulo);
       setEstado(pendente.current ? 'salvando' : 'salvo');
-    } catch {
+      quem.forEach((q) => q.resolver(salvo));
+    } catch (e) {
       setEstado('erro');
+      quem.forEach((q) => q.rejeitar(e));
     } finally {
       emVoo.current = false;
       if (pendente.current) void despachar();
@@ -169,14 +197,110 @@ export function DocumentoPagina() {
     [despachar],
   );
 
-  // O Markdown é gravado quando a digitação pausa.
+  /** Grava e espera a resposta. Gravar o texto encerra a revisão do assistente. */
+  const gravar = useCallback(
+    (alteracao: AtualizarDocumento) =>
+      new Promise<Documento>((resolver, rejeitar) => {
+        esperando.current.push({ resolver, rejeitar });
+        salvar(alteracao);
+      }).then((salvo) => {
+        if (alteracao.corpo !== undefined) {
+          setRevisao(null);
+          apagarDestaques();
+        }
+        return salvo;
+      }),
+    [salvar],
+  );
+
+  // O Markdown é gravado quando a digitação pausa — a não ser que haja
+  // alterações do assistente na tela: essas só são gravadas com a aprovação
+  // do usuário (manter e salvar, ou o pedido de salvar do assistente).
   useEffect(() => {
-    if (texto === null || !documento || texto === documento.corpo) return;
+    if (texto === null || !documento || texto === documento.corpo || revisao) return;
     setEstado('salvando');
     const espera = window.setTimeout(() => salvar({ corpo: texto }), 700);
     return () => window.clearTimeout(espera);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [texto]);
+  }, [texto, revisao]);
+
+  // ─── O assistente na tela ─────────────────────────────────────────────────
+  const marcar = useCallback((trechos: string[], rolar: boolean) => {
+    // Depois que o editor redesenha a folha.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const primeira = destacar(editor.current?.folha() ?? null, trechos);
+        if (rolar) mostrar(primeira);
+      }),
+    );
+  }, []);
+
+  // Os destaques acompanham o texto: o editor redesenha, as faixas são refeitas.
+  useEffect(() => {
+    if (revisao) marcar(revisao.trechos, false);
+  }, [texto, revisao, marcar]);
+
+  useEffect(() => () => apagarDestaques(), []);
+
+  const aplicarEdicao = useCallback(
+    (novo: string, trechos: string[]) => {
+      const antes = editor.current?.obter() ?? '';
+      editor.current?.modo('rich-text');
+      editor.current?.definir(novo);
+      setTexto(novo);
+      const anterior = revisaoRef.current;
+      const proxima: Revisao = anterior
+        ? { ...anterior, trechos: [...anterior.trechos, ...trechos], edicoes: anterior.edicoes + 1 }
+        : { original: antes, trechos, edicoes: 1 };
+      revisaoRef.current = proxima;
+      setRevisao(proxima);
+      if (modo === 'pdf') setParametros({ modo: 'lado-a-lado' }, { replace: true });
+      marcar(proxima.trechos, true);
+    },
+    [marcar, modo, setParametros],
+  );
+
+  const desfazerRevisao = () => {
+    if (!revisao) return;
+    editor.current?.modo('rich-text');
+    editor.current?.definir(revisao.original);
+    setTexto(revisao.original);
+    setRevisao(null);
+    apagarDestaques();
+  };
+
+  const resumoDaRevisao = (r: Revisao | null) =>
+    !r ? '' : r.edicoes === 1 ? '1 alteração do assistente' : `${r.edicoes} alterações do assistente`;
+
+  useAssistenteNoDocumento(
+    documento && texto !== null
+      ? {
+          documento,
+          templates,
+          obterTexto: () => editor.current?.obter() ?? texto,
+          obterSelecao: () => editor.current?.selecao() ?? '',
+          aplicarEdicao,
+          gravar,
+          revisao: () => ({ pendente: !!revisaoRef.current, resumo: resumoDaRevisao(revisaoRef.current) }),
+          verDiferencas: () => editor.current?.modo('diff'),
+          mostrarAlteracoes: () => {
+            editor.current?.modo('rich-text');
+            marcar(revisaoRef.current?.trechos ?? [], true);
+          },
+        }
+      : null,
+  );
+
+  // Sair da tela com alterações do assistente não salvas pede confirmação.
+  const bloqueio = useBlocker(
+    ({ currentLocation, nextLocation }) => !!revisao && currentLocation.pathname !== nextLocation.pathname,
+  );
+  useEffect(() => {
+    if (!revisao) return;
+    const aoSair = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', aoSair);
+    return () => window.removeEventListener('beforeunload', aoSair);
+  }, [revisao]);
 
   // ─── O PDF: refeito a cada versão gravada; o anterior fica até o novo chegar ──
   const pdf = useQuery({
@@ -187,13 +311,11 @@ export function DocumentoPagina() {
     retry: false,
   });
 
+  // Uma imagem enviada pelo editor (botão, colar ou arrastar): entra nos
+  // ativos do documento, e o editor cita a referência relativa.
   const enviarImagem = async (arquivo: File) => {
-    try {
-      const imagem = await gravarImagem.mutateAsync(arquivo);
-      return `![${alternativo(imagem.nome)}](${imagem.referencia})`;
-    } catch {
-      return null;
-    }
+    const imagem = await gravarImagem.mutateAsync(arquivo);
+    return imagem.referencia;
   };
 
   if (isLoading) return <div className={estilos.carregando}><Spinner /></div>;
@@ -232,8 +354,9 @@ export function DocumentoPagina() {
             />
           </Tooltip>
           <Caption1 className={estilos.estado} aria-live="polite">
+            {revisao && estado !== 'salvando' && <Text style={{ color: 'var(--assistente)' }}>Não salvo</Text>}
             {estado === 'salvando' && <><Spinner size="extra-tiny" /> Salvando…</>}
-            {estado === 'salvo' && <><CheckmarkRegular /> Salvo</>}
+            {estado === 'salvo' && !revisao && <><CheckmarkRegular /> Salvo</>}
             {estado === 'erro' && <Text style={{ color: tokens.colorPaletteRedForeground1 }}>Não foi salvo</Text>}
           </Caption1>
         </div>
@@ -247,6 +370,14 @@ export function DocumentoPagina() {
               icon={<PaintBrushRegular />}
               checked={painel === 'formatacao'}
               onClick={() => setPainel(painel === 'formatacao' ? null : 'formatacao')}
+            />
+          </Tooltip>
+          <Tooltip content="Papel timbrado" relationship="label">
+            <ToggleButton
+              appearance="subtle"
+              icon={<DocumentHeaderFooterRegular />}
+              checked={painel === 'timbre'}
+              onClick={() => setPainel(painel === 'timbre' ? null : 'timbre')}
             />
           </Tooltip>
           <Tooltip content="Imagens do documento" relationship="label">
@@ -304,14 +435,43 @@ export function DocumentoPagina() {
         <Vistas
           modo={modo}
           onModo={mudarModo}
-          texto={<EditorDeTexto ref={editor} valor={texto ?? ''} onMudar={setTexto} onImagem={enviarImagem} />}
-          visualizacao={
-            <MarkdownRenderizado
-              markdown={texto ?? ''}
-              base={urls.baseDoDocumento(id)}
-              imagens={documento.imagens}
-              versao={documento.alteradoEm}
-            />
+          agindo={assistente.agindoEm === 'documento' ? 'texto' : null}
+          texto={
+            texto !== null && (
+              <>
+              {gravarImagem.error && painel !== 'imagens' && (
+                <MessageBar intent="error" className={estilos.erro}>
+                  <MessageBarBody>A imagem não foi enviada: {gravarImagem.error.message}</MessageBarBody>
+                </MessageBar>
+              )}
+              <div className={estilos.lenteDoTexto}>
+                <EditorMarkdown
+                  key={documento.id}
+                  ref={editor}
+                  markdown={texto}
+                  onMudar={setTexto}
+                  imagens={documento.imagens}
+                  versao={documento.alteradoEm}
+                  onImagem={enviarImagem}
+                  salvo={documento.corpo}
+                />
+                {revisao && (
+                  <BarraDeRevisao
+                    resumo={resumoDaRevisao(revisao)}
+                    salvando={estado === 'salvando'}
+                    onVerDiferencas={() => editor.current?.modo('diff')}
+                    onDesfazer={desfazerRevisao}
+                    onManter={() => void gravar({ corpo: editor.current?.obter() ?? texto }).catch(() => undefined)}
+                  />
+                )}
+              </div>
+              <PerguntarSobreSelecao
+                obterSelecao={() => editor.current?.selecao() ?? ''}
+                dentroDe={() => editor.current?.folha() ?? null}
+                onPerguntar={(trecho) => assistente.anexarSelecao(trecho)}
+              />
+              </>
+            )
           }
           pdf={
             <div className={estilos.pdf}>
@@ -330,6 +490,7 @@ export function DocumentoPagina() {
             <DrawerHeaderTitle>
               <TabList size="small" selectedValue={painel ?? 'formatacao'} onTabSelect={(_, d) => setPainel(d.value as Painel)}>
                 <Tab value="formatacao">Formatação</Tab>
+                <Tab value="timbre">Timbre</Tab>
                 <Tab value="imagens">Imagens</Tab>
               </TabList>
             </DrawerHeaderTitle>
@@ -338,6 +499,19 @@ export function DocumentoPagina() {
             {painel === 'formatacao' && (
               <InspetorDeFormatacao eixos={documento.eixos} onAjuste={(ajuste) => salvar({ ajustes: [ajuste] })} />
             )}
+            {painel === 'timbre' && (
+              <PainelDoTimbre
+                documento={documento}
+                enviando={gravarTimbre.isPending || removerTimbre.isPending}
+                onEnviar={(paginas, arquivo) => gravarTimbre.mutate({ paginas, arquivo })}
+                onRemover={(paginas) => removerTimbre.mutate(paginas)}
+              />
+            )}
+            {painel === 'timbre' && (gravarTimbre.error || removerTimbre.error) && (
+              <MessageBar intent="error" style={{ marginTop: tokens.spacingVerticalM }}>
+                <MessageBarBody>{(gravarTimbre.error ?? removerTimbre.error)?.message}</MessageBarBody>
+              </MessageBar>
+            )}
             {painel === 'imagens' && (
               <PainelDeImagens
                 imagens={documento.imagens}
@@ -345,13 +519,13 @@ export function DocumentoPagina() {
                 enviando={gravarImagem.isPending}
                 onEnviar={(arquivos) => arquivos.forEach((a) => void gravarImagem.mutateAsync(a).catch(() => undefined))}
                 onInserir={(imagem) => {
-                  if (modo === 'visualizacao' || modo === 'pdf') mudarModo('lado-a-lado');
+                  if (modo === 'pdf') mudarModo('lado-a-lado');
                   editor.current?.inserir(`![${alternativo(imagem.nome)}](${imagem.referencia})`);
                 }}
                 onRemover={(imagem) => removerImagem.mutate(imagem.nome)}
               />
             )}
-            {gravarImagem.error && (
+            {painel === 'imagens' && gravarImagem.error && (
               <MessageBar intent="error" style={{ marginTop: tokens.spacingVerticalM }}>
                 <MessageBarBody>{gravarImagem.error.message}</MessageBarBody>
               </MessageBar>
@@ -359,6 +533,38 @@ export function DocumentoPagina() {
           </DrawerBody>
         </InlineDrawer>
       </div>
+
+      <Dialog open={bloqueio.state === 'blocked'} onOpenChange={(_, d) => !d.open && bloqueio.reset?.()}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Descartar as alterações do assistente?</DialogTitle>
+            <DialogContent>
+              O assistente alterou este documento, e as alterações ainda não foram salvas. Saindo agora, elas se perdem.
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => bloqueio.reset?.()}>Continuar aqui</Button>
+              <Button
+                onClick={() => {
+                  desfazerRevisao();
+                  bloqueio.proceed?.();
+                }}
+              >
+                Descartar e sair
+              </Button>
+              <Button
+                appearance="primary"
+                onClick={() =>
+                  void gravar({ corpo: editor.current?.obter() ?? texto ?? '' })
+                    .then(() => bloqueio.proceed?.())
+                    .catch(() => bloqueio.reset?.())
+                }
+              >
+                Salvar e sair
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
 
       <Dialog open={dialogo === 'template'} onOpenChange={(_, d) => !d.open && setDialogo(null)}>
         <DialogSurface>

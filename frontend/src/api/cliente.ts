@@ -1,4 +1,4 @@
-import type { AtualizarDocumento, Documento, DocumentoResumo, Imagem, Template } from './tipos';
+import type { AtualizarDocumento, Documento, DocumentoResumo, Imagem, PaginasDoTimbre, StatusDoAgente, Template } from './tipos';
 
 /** Uma resposta de erro da API, com a mensagem que ela devolveu. */
 export class ErroDaApi extends Error {
@@ -58,15 +58,25 @@ export const api = {
   removerImagem: (documentoId: string, nome: string) =>
     pedir<void>(`/api/documentos/${documentoId}/imagens/${encodeURIComponent(nome)}`, { method: 'DELETE' }),
 
+  /** Põe uma imagem como papel timbrado; devolve o documento, com a formatação nova. */
+  gravarTimbre: (documentoId: string, paginas: PaginasDoTimbre, arquivo: File) => {
+    const formulario = new FormData();
+    formulario.append('arquivo', arquivo, arquivo.name);
+    return pedir<Documento>(`/api/documentos/${documentoId}/timbre/${paginas}`, { method: 'PUT', body: formulario });
+  },
+
+  removerTimbre: (documentoId: string, paginas: PaginasDoTimbre) =>
+    pedir<Documento>(`/api/documentos/${documentoId}/timbre/${paginas}`, { method: 'DELETE' }),
+
   templates: () => pedir<Template[]>('/api/templates'),
 
   criarTemplate: (documentoId: string, nome: string) =>
     pedir<Template>('/api/templates', { method: 'POST', body: JSON.stringify({ documentoId, nome }) }),
+
+  statusDoAgente: () => pedir<StatusDoAgente>('/api/agente/status'),
 };
 
 export const urls = {
   pdfDoDocumento: (id: string, versao: string) => `/api/documentos/${id}/pdf?v=${encodeURIComponent(versao)}`,
   amostraDoTemplate: (id: string) => `/api/templates/${id}/amostra`,
-  /** A base contra a qual o Markdown do documento resolve `imagens/<nome>`. */
-  baseDoDocumento: (id: string) => `/api/documentos/${id}/`,
 };

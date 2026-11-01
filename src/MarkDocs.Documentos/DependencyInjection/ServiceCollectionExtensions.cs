@@ -1,15 +1,21 @@
 using MarkDocs.Abstractions;
 using MarkDocs.Core;
+using MarkDocs.Documentos.Application.Agente;
 using MarkDocs.Documentos.Application.Services;
+using MarkDocs.Documentos.Hosting;
+using MarkDocs.Documentos.Infrastructure.Agente;
 using MarkDocs.Documentos.Infrastructure.Armazenamento;
 using MarkDocs.Documentos.Infrastructure.Fontes;
 using MarkDocs.Documentos.Infrastructure.Persistence.Configuration;
 using MarkDocs.Documentos.Infrastructure.Persistence.Interfaces;
 using MarkDocs.Documentos.Infrastructure.Persistence.Repositories;
 using MarkDocs.Documentos.Infrastructure.Workers;
+using Microsoft.Agents.AI.Hosting;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 
@@ -70,6 +76,55 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.AddHostedService<SemeadorDeTemplates>();
 
+        services.AddAgente(new AgenteOptions
+        {
+            Provedor = configuration["AGENTE_PROVEDOR"] is { Length: > 0 } provedor ? provedor : AgenteOptions.OpenAI,
+            Modelo = configuration["AGENTE_MODELO"] ?? "",
+            ChaveApi = configuration["AGENTE_CHAVE_API"],
+            Endpoint = configuration["AGENTE_ENDPOINT"],
+        });
+
         return services;
+    }
+
+    /// <summary>
+    /// O assistente (Docs/decisoes-arquitetura/EI-001): o Microsoft Agent
+    /// Framework com o agente exposto em AG-UI por <c>MapAgente</c>. Sem
+    /// configuração mínima, nada de agente é registrado e o endpoint responde
+    /// 503 com o que falta.
+    /// </summary>
+    private static void AddAgente(this IServiceCollection services, AgenteOptions agente)
+    {
+        services.Configure<AgenteOptions>(o =>
+        {
+            o.Provedor = agente.Provedor;
+            o.Modelo = agente.Modelo;
+            o.ChaveApi = agente.ChaveApi;
+            o.Endpoint = agente.Endpoint;
+        });
+        if (!agente.Configurado) return;
+
+        // O cliente do modelo, por nome: os testes trocam só ele.
+        services.AddKeyedSingleton<IChatClient>(Assistente.Nome, (sp, _) =>
+            ClienteDoModelo.Criar(sp.GetRequiredService<IOptions<AgenteOptions>>().Value));
+        services.AddSingleton<FerramentasDoAgente>();
+        services.AddAGUIServer();
+        services.AddSingleton<IPostConfigureOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>, EventosAguiSemNulos>();
+
+        services.AddAIAgent(
+            Assistente.Nome,
+            (sp, nome) => Assistente.Criar(
+                sp.GetRequiredKeyedService<IChatClient>(nome),
+                sp.GetRequiredService<FerramentasDoAgente>(),
+                sp.GetRequiredService<ILoggerFactory>(),
+                sp),
+            ServiceLifetime.Singleton);
+
+        // Histórico da conversa no servidor: decisão em aberto (EI-001,
+        // "Histórico"). Hoje a conversa vive no cliente, que a reenvia a cada
+        // execução, e nenhum AgentSessionStore é registrado. Persistir é
+        // encadear .WithSessionStore((sp, nome) => new <Store>(...)) no
+        // retorno de AddAIAgent — o MapAGUIServer já procura o store pelo
+        // nome do agente e usa o threadId do AG-UI como chave.
     }
 }

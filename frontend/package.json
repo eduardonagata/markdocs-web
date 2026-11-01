@@ -13,8 +13,10 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@ag-ui/client": "1.0.3",
     "@fluentui/react-components": "9.74.9",
     "@fluentui/react-icons": "2.0.344",
+    "@mdxeditor/editor": "4.3.3",
     "@tanstack/react-query": "5.62.7",
     "pdfjs-dist": "4.10.38",
     "react": "18.3.1",
