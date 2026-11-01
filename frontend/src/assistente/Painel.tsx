@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { Message } from '@ag-ui/client';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -12,11 +12,12 @@ import {
   MessageBarBody,
   Spinner,
   Text,
-  Textarea,
   tokens,
   Tooltip,
 } from '@fluentui/react-components';
 import {
+  ArrowMaximizeRegular,
+  ArrowMinimizeRegular,
   ArrowUpRegular,
   CheckmarkCircleRegular,
   ComposeRegular,
@@ -39,21 +40,45 @@ const useEstilos = makeStyles({
     right: '12px',
     bottom: '12px',
     width: '400px',
+    maxWidth: 'calc(100vw - 24px)',
     zIndex: 1000,
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: 'rgba(255, 255, 255, 0.97)',
-    backdropFilter: 'blur(12px)',
+    // Uma folha: opaca, como papel — o que está por baixo não transparece.
+    backgroundColor: tokens.colorNeutralBackground1,
     border: '1px solid var(--assistente-borda)',
     borderRadius: '14px',
     boxShadow: '0 24px 64px rgba(28, 25, 23, 0.18), 0 2px 8px rgba(28, 25, 23, 0.08)',
     overflow: 'hidden',
-    transitionProperty: 'transform, opacity',
-    transitionDuration: '260ms',
+    transitionProperty: 'transform, opacity, width, box-shadow',
+    transitionDuration: '300ms',
     transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
-    '@media (max-width: 640px)': { top: 0, right: 0, bottom: 0, width: '100%', borderRadius: 0 },
+    '@media (max-width: 640px)': { top: 0, right: 0, bottom: 0, width: '100%', maxWidth: '100%', borderRadius: 0 },
+  },
+  // Expandido, o painel é uma folha sobre quase todo o app: sobra mais espaço
+  // no topo e à esquerda do que à direita e embaixo — a superfície do app
+  // continua à vista, por baixo.
+  expandido: {
+    width: 'calc(100vw - 96px - 12px)',
+    boxShadow: '0 32px 96px rgba(28, 25, 23, 0.26), 0 4px 16px rgba(28, 25, 23, 0.10)',
   },
   fechado: { transform: 'translateX(24px)', opacity: 0, pointerEvents: 'none', visibility: 'hidden' },
+  // A superfície do app, um tom abaixo, enquanto a folha está expandida. Não
+  // bloqueia nada: o app continua sendo o app.
+  veu: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 999,
+    pointerEvents: 'none',
+    backgroundColor: 'rgba(28, 25, 23, 0.10)',
+    opacity: 0,
+    transition: 'opacity 300ms ease',
+  },
+  veuVisivel: { opacity: 1, '@media (max-width: 640px)': { opacity: 0 } },
+  // Em telas estreitas o painel já ocupa a tela toda.
+  soEmTelaLarga: { '@media (max-width: 640px)': { display: 'none' } },
+  // A largura de leitura: no painel reduzido, a do painel; expandido, uma coluna.
+  coluna: { width: '100%', maxWidth: '760px', marginLeft: 'auto', marginRight: 'auto', boxSizing: 'border-box' },
   cabecalho: {
     display: 'flex',
     alignItems: 'center',
@@ -68,6 +93,11 @@ const useEstilos = makeStyles({
     flex: 1,
     overflowY: 'auto',
     padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalL}`,
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  mensagens: {
+    flexGrow: 1,
     display: 'flex',
     flexDirection: 'column',
     gap: tokens.spacingVerticalM,
@@ -125,13 +155,41 @@ const useEstilos = makeStyles({
   },
   botoes: { display: 'flex', gap: tokens.spacingHorizontalS, alignItems: 'center', flexWrap: 'wrap' },
   composer: {
-    borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
-    padding: tokens.spacingHorizontalM,
+    padding: `0 ${tokens.spacingHorizontalM} ${tokens.spacingHorizontalM}`,
+  },
+  // O campo e o botão de enviar numa caixa só, como no ChatGPT: o texto em
+  // cima, e embaixo o contexto (à esquerda) e o enviar (à direita).
+  caixa: {
     display: 'flex',
     flexDirection: 'column',
-    gap: tokens.spacingVerticalS,
+    gap: '6px',
+    padding: '10px 10px 10px 16px',
+    backgroundColor: tokens.colorNeutralBackground1,
+    border: `1px solid ${tokens.colorNeutralStroke1}`,
+    borderRadius: '22px',
+    boxShadow: '0 1px 2px rgba(28, 25, 23, 0.04), 0 4px 16px rgba(28, 25, 23, 0.06)',
+    transition: 'border-color 160ms ease',
+    ':focus-within': { ...shorthands.borderColor(tokens.colorNeutralStroke1Hover) },
   },
-  chips: { display: 'flex', gap: tokens.spacingHorizontalXS, flexWrap: 'wrap' },
+  campo: {
+    border: 'none',
+    outline: 'none',
+    resize: 'none',
+    padding: '4px 6px 0 0',
+    margin: 0,
+    backgroundColor: 'transparent',
+    fontFamily: tokens.fontFamilyBase,
+    fontSize: tokens.fontSizeBase300,
+    lineHeight: tokens.lineHeightBase300,
+    color: tokens.colorNeutralForeground1,
+    minHeight: '24px',
+    maxHeight: '200px',
+    overflowY: 'auto',
+    '::placeholder': { color: tokens.colorNeutralForeground4 },
+    ':disabled': { cursor: 'not-allowed' },
+  },
+  rodapeDaCaixa: { display: 'flex', alignItems: 'flex-end', gap: tokens.spacingHorizontalS },
+  chips: { display: 'flex', gap: tokens.spacingHorizontalXS, flexWrap: 'wrap', flex: 1, minWidth: 0, alignSelf: 'center' },
   chip: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -144,10 +202,9 @@ const useEstilos = makeStyles({
     color: tokens.colorNeutralForeground2,
     backgroundColor: tokens.colorNeutralBackground1,
   },
-  chipTexto: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '260px' },
+  chipTexto: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' },
   chipSelecao: { ...shorthands.borderColor('var(--assistente-borda)'), backgroundColor: 'var(--assistente-fundo)' },
   removerChip: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', display: 'flex', color: 'inherit' },
-  entrada: { display: 'flex', gap: tokens.spacingHorizontalS, alignItems: 'flex-end' },
 });
 
 const sugestoesNoDocumento = [
@@ -166,7 +223,17 @@ function texto(mensagem: Message): string {
   return '';
 }
 
-function Rastro({ nome, desfecho, concluida }: { nome: string; desfecho: Desfecho | undefined; concluida: boolean }) {
+function Rastro({
+  nome,
+  desfecho,
+  concluida,
+  antesDeMostrar,
+}: {
+  nome: string;
+  desfecho: Desfecho | undefined;
+  concluida: boolean;
+  antesDeMostrar: () => void;
+}) {
   const estilos = useEstilos();
   const estado = desfecho?.estado ?? (concluida ? 'ok' : 'executando');
   const icone =
@@ -188,7 +255,14 @@ function Rastro({ nome, desfecho, concluida }: { nome: string; desfecho: Desfech
         {desfecho?.resumo && ` — ${desfecho.resumo}`}
       </span>
       {desfecho?.mostrar && estado === 'ok' && (
-        <button type="button" className={estilos.link} onClick={desfecho.mostrar}>
+        <button
+          type="button"
+          className={estilos.link}
+          onClick={() => {
+            antesDeMostrar();
+            desfecho.mostrar?.();
+          }}
+        >
           Mostrar
         </button>
       )}
@@ -196,7 +270,7 @@ function Rastro({ nome, desfecho, concluida }: { nome: string; desfecho: Desfech
   );
 }
 
-function CartaoDeAprovacao({ aprovacao }: { aprovacao: Aprovacao }) {
+function CartaoDeAprovacao({ aprovacao, antesDeMostrar }: { aprovacao: Aprovacao; antesDeMostrar: () => void }) {
   const estilos = useEstilos();
   const { pedido, responder } = aprovacao;
   return (
@@ -211,7 +285,14 @@ function CartaoDeAprovacao({ aprovacao }: { aprovacao: Aprovacao }) {
           Recusar
         </Button>
         {pedido.verAlteracoes && (
-          <button type="button" className={estilos.link} onClick={pedido.verAlteracoes}>
+          <button
+            type="button"
+            className={estilos.link}
+            onClick={() => {
+              antesDeMostrar();
+              pedido.verAlteracoes?.();
+            }}
+          >
             Ver as alterações
           </button>
         )}
@@ -221,17 +302,30 @@ function CartaoDeAprovacao({ aprovacao }: { aprovacao: Aprovacao }) {
 }
 
 /**
- * O assistente: um painel que flutua à direita, por cima de qualquer tela —
- * a camada de quem age em nome do usuário. O que ele faz aparece na própria
- * tela (destacado), e aqui fica o rastro: cada ação, o que mudou, e o pedido
- * de aprovação de tudo o que grava no servidor.
+ * O assistente: uma folha que se abre à direita, por cima de qualquer tela —
+ * a camada de quem age em nome do usuário —, e que se expande sobre quase
+ * todo o app. O que ele faz aparece na própria tela (destacado), e aqui fica
+ * o rastro: cada ação, o que mudou, e o pedido de aprovação de tudo o que
+ * grava no servidor.
  */
 export function PainelDoAssistente() {
   const estilos = useEstilos();
   const a = useAssistente();
   const [escrito, setEscrito] = useState('');
+  const [expandido, setExpandido] = useState(false);
   const conversa = useRef<HTMLDivElement>(null);
   const entrada = useRef<HTMLTextAreaElement>(null);
+
+  // O campo cresce com o texto, até um limite; depois rola.
+  useLayoutEffect(() => {
+    const campo = entrada.current;
+    if (!campo) return;
+    campo.style.height = 'auto';
+    campo.style.height = `${Math.min(campo.scrollHeight, 200)}px`;
+  }, [escrito]);
+
+  // Para mostrar algo no documento, a folha expandida volta ao tamanho reduzido.
+  const recolher = () => setExpandido(false);
 
   // A conversa rola junto com o que chega.
   useEffect(() => {
@@ -261,8 +355,10 @@ export function PainelDoAssistente() {
   const noDocumento = a.rotulos.length > 0;
 
   return (
+    <>
+    <div className={mergeClasses(estilos.veu, a.aberto && expandido && estilos.veuVisivel)} aria-hidden />
     <aside
-      className={mergeClasses(estilos.painel, !a.aberto && estilos.fechado)}
+      className={mergeClasses(estilos.painel, expandido && estilos.expandido, !a.aberto && estilos.fechado)}
       aria-label="Assistente"
       aria-hidden={!a.aberto}
     >
@@ -277,12 +373,22 @@ export function PainelDoAssistente() {
         <Tooltip content="Nova conversa" relationship="label">
           <Button appearance="subtle" icon={<ComposeRegular />} onClick={a.novaConversa} disabled={a.mensagens.length === 0} />
         </Tooltip>
+        <Tooltip content={expandido ? 'Voltar ao tamanho reduzido' : 'Expandir'} relationship="label">
+          <Button
+            className={estilos.soEmTelaLarga}
+            appearance="subtle"
+            icon={expandido ? <ArrowMinimizeRegular /> : <ArrowMaximizeRegular />}
+            aria-pressed={expandido}
+            onClick={() => setExpandido((e) => !e)}
+          />
+        </Tooltip>
         <Tooltip content="Fechar (Esc)" relationship="label">
           <Button appearance="subtle" icon={<DismissRegular />} onClick={a.fechar} />
         </Tooltip>
       </header>
 
       <div ref={conversa} className={estilos.conversa} aria-live="polite">
+        <div className={mergeClasses(estilos.coluna, estilos.mensagens)}>
         {a.disponivel === false && (
           <MessageBar intent="warning" layout="multiline">
             <MessageBarBody>O assistente não está configurado neste ambiente. {a.oQueFalta}</MessageBarBody>
@@ -326,8 +432,15 @@ export function PainelDoAssistente() {
               )}
               {mensagem.toolCalls?.map((chamada) => (
                 <div key={chamada.id} style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalS }}>
-                  <Rastro nome={chamada.function.name} desfecho={a.desfechos.get(chamada.id)} concluida={resultados.has(chamada.id)} />
-                  {a.aprovacoes.get(chamada.id) && <CartaoDeAprovacao aprovacao={a.aprovacoes.get(chamada.id)!} />}
+                  <Rastro
+                    nome={chamada.function.name}
+                    desfecho={a.desfechos.get(chamada.id)}
+                    concluida={resultados.has(chamada.id)}
+                    antesDeMostrar={recolher}
+                  />
+                  {a.aprovacoes.get(chamada.id) && (
+                    <CartaoDeAprovacao aprovacao={a.aprovacoes.get(chamada.id)!} antesDeMostrar={recolher} />
+                  )}
                 </div>
               ))}
             </div>
@@ -345,53 +458,61 @@ export function PainelDoAssistente() {
             <MessageBarBody>{a.erro}</MessageBarBody>
           </MessageBar>
         )}
+        </div>
       </div>
 
       <div className={estilos.composer}>
-        {(a.rotulos.length > 0 || a.selecao) && (
-          <div className={estilos.chips}>
-            {a.rotulos.map((r) => (
-              <Tooltip key={r} content="O documento aberto é o alvo das edições, a não ser que você diga outro" relationship="description">
-                <span className={estilos.chip}>
-                  <DocumentTextRegular />
-                  <span className={estilos.chipTexto}>{r}</span>
-                </span>
-              </Tooltip>
-            ))}
-            {a.selecao && (
-              <span className={mergeClasses(estilos.chip, estilos.chipSelecao)}>
-                <TextQuoteRegular />
-                <span className={estilos.chipTexto}>{a.selecao.replace(/\s+/g, ' ')}</span>
-                <button type="button" className={estilos.removerChip} aria-label="Tirar o trecho" onClick={a.removerSelecao}>
-                  <DismissRegular fontSize={12} />
-                </button>
-              </span>
-            )}
-          </div>
-        )}
-        <div className={estilos.entrada}>
-          <Textarea
+        <div className={mergeClasses(estilos.coluna, estilos.caixa)}>
+          <textarea
             ref={entrada}
-            style={{ flex: 1 }}
-            resize="none"
-            rows={2}
+            className={estilos.campo}
+            rows={1}
+            aria-label="Mensagem para o assistente"
             placeholder={a.selecao ? 'O que fazer com o trecho selecionado?' : 'Peça ao assistente…'}
             value={escrito}
             disabled={a.disponivel === false}
-            onChange={(_, d) => setEscrito(d.value)}
+            onChange={(e) => setEscrito(e.target.value)}
             onKeyDown={aoTeclar}
           />
-          {a.rodando ? (
-            <Tooltip content="Parar" relationship="label">
-              <Button icon={<StopRegular />} onClick={a.parar} />
-            </Tooltip>
-          ) : (
-            <Tooltip content="Enviar (Enter)" relationship="label">
-              <Button appearance="primary" icon={<ArrowUpRegular />} disabled={!escrito.trim() || !a.disponivel} onClick={() => enviar()} />
-            </Tooltip>
-          )}
+          <div className={estilos.rodapeDaCaixa}>
+            <div className={estilos.chips}>
+              {a.rotulos.map((r) => (
+                <Tooltip key={r} content="O documento aberto é o alvo das edições, a não ser que você diga outro" relationship="description">
+                  <span className={estilos.chip}>
+                    <DocumentTextRegular />
+                    <span className={estilos.chipTexto}>{r}</span>
+                  </span>
+                </Tooltip>
+              ))}
+              {a.selecao && (
+                <span className={mergeClasses(estilos.chip, estilos.chipSelecao)}>
+                  <TextQuoteRegular />
+                  <span className={estilos.chipTexto}>{a.selecao.replace(/\s+/g, ' ')}</span>
+                  <button type="button" className={estilos.removerChip} aria-label="Tirar o trecho" onClick={a.removerSelecao}>
+                    <DismissRegular fontSize={12} />
+                  </button>
+                </span>
+              )}
+            </div>
+            {a.rodando ? (
+              <Tooltip content="Parar" relationship="label">
+                <Button shape="circular" icon={<StopRegular />} onClick={a.parar} />
+              </Tooltip>
+            ) : (
+              <Tooltip content="Enviar (Enter)" relationship="label">
+                <Button
+                  shape="circular"
+                  appearance="primary"
+                  icon={<ArrowUpRegular />}
+                  disabled={!escrito.trim() || !a.disponivel}
+                  onClick={() => enviar()}
+                />
+              </Tooltip>
+            )}
+          </div>
         </div>
       </div>
     </aside>
+    </>
   );
 }
