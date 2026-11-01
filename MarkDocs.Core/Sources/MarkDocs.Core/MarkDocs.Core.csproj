@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    MarkDocs.Core — a transcrição .NET do NotiqTypst.
+
+    Markdown e um template entram, os bytes de um PDF paginado saem. Não
+    conhece MongoDB, não conhece ASP.NET, não conhece o app: a superfície
+    pública são duas chamadas (RegistroDeGeradores.Carregar e
+    RenderizadorPDF.Pdf/Compor).
+
+    O motor Typst é uma biblioteca nativa (Rust, ../../Rust/typst-markdocs),
+    já compilada e versionada em ../../Artefatos/runtimes/<rid>/native/.
+    Ninguém precisa de Rust para trabalhar no app.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MarkDocs.Core</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Markdig" Version="1.5.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- O único arquivo Typst de que todo template depende. -->
+    <EmbeddedResource Include="Conteudo/Recursos/base.typ" LogicalName="MarkDocs.Core.base.typ" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      O motor compilado viaja com o assembly, no layout de runtimes/ que o
+      .NET entende: em `dotnet build` é copiado para bin/, e em `dotnet
+      publish` para o diretório publicado (ou para o .nupkg, se um dia o
+      pacote for publicado).
+    -->
+    <None Include="../../Artefatos/runtimes/**/*"
+          Link="runtimes/%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest"
+          Pack="true"
+          PackagePath="runtimes/%(RecursiveDir)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- O equivalente a `@testable import`: os testes leem o Acervo, a árvore e o .typ. -->
+    <InternalsVisibleTo Include="MarkDocs.Core.Tests" />
+  </ItemGroup>
+
+</Project>

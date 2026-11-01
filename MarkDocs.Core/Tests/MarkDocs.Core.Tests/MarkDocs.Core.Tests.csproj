@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Os testes do MarkDocs.Core: a transcrição, asserção por asserção, dos
+    testes do NotiqTypst (Docs/Testes.md). Vivem dentro de MarkDocs.Core/ para
+    que o pacote possa ser extraído do app junto com eles.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>MarkDocs.Core.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <!-- O que o PDFKit faz nos testes Swift: texto, posição e corpo das letras. -->
+    <PackageReference Include="PdfPig" Version="0.1.16" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../Sources/MarkDocs.Core/MarkDocs.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- As quatro faces de Libertinus Serif que os templates de teste exigem. -->
+    <None Include="Recursos/**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

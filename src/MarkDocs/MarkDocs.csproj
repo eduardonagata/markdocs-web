@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    O Host: o único executável. Bootstrap puro — compõe os módulos dos slices,
+    o pipeline HTTP, descobre os endpoints do MarkDocs.WebApi e hospeda o
+    frontend pelo MarkDocs.WebUi. Não tem endpoint nem regra de negócio.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MarkDocs</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+      SpaProxy + BuildFrontend (o mesmo arranjo do servico-dfe):
+      * Em Development, o Microsoft.AspNetCore.SpaProxy roda
+        $(SpaProxyLaunchCommand) em $(SpaRoot) e redireciona o navegador para
+        $(SpaProxyServerUrl): `dotnet run` sobe backend e frontend.
+      * Em Release/Publish, o target BuildFrontend roda `npm ci && npm run
+        build` em $(SpaRoot) e copia dist/** para wwwroot/ no output.
+    -->
+    <SpaRoot>$(MSBuildThisFileDirectory)../../frontend/</SpaRoot>
+    <SpaProxyServerUrl>http://localhost:5173</SpaProxyServerUrl>
+    <SpaProxyLaunchCommand>npm run dev</SpaProxyLaunchCommand>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotNetEnv" Version="3.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="10.0.13" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MarkDocs.WebApi\MarkDocs.WebApi.csproj" />
+    <ProjectReference Include="..\MarkDocs.WebUi\MarkDocs.WebUi.csproj" />
+    <ProjectReference Include="..\MarkDocs.Documentos\MarkDocs.Documentos.csproj" />
+  </ItemGroup>
+
+  <!--
+    BuildFrontend: em Release/Publish, garante que $(SpaRoot)dist exista e o
+    copia como wwwroot/* no output. Quando dist já existe (o Docker
+    multi-stage o produz num estágio Node anterior), os `npm` são pulados.
+  -->
+  <Target Name="BuildFrontend"
+          BeforeTargets="AssignTargetPaths"
+          Condition=" '$(Configuration)' == 'Release' Or '$(IsPublishing)' == 'true' ">
+
+    <Exec Command="npm ci"
+          WorkingDirectory="$(SpaRoot)"
+          Condition=" !Exists('$(SpaRoot)node_modules') And !Exists('$(SpaRoot)dist') " />
+
+    <Exec Command="npm run build"
+          WorkingDirectory="$(SpaRoot)"
+          EnvironmentVariables="NODE_OPTIONS=--max-old-space-size=4096"
+          Condition=" !Exists('$(SpaRoot)dist') " />
+
+    <Error Text="O build do frontend não produziu $(SpaRoot)dist. Verifique se o npm está no PATH."
+           Condition=" !Exists('$(SpaRoot)dist') " />
+
+    <ItemGroup>
+      <_SpaFiles Include="$(SpaRoot)dist/**/*" />
+      <Content Include="@(_SpaFiles)"
+               Link="wwwroot/%(_SpaFiles.RecursiveDir)%(_SpaFiles.Filename)%(_SpaFiles.Extension)"
+               CopyToOutputDirectory="PreserveNewest"
+               CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
+</Project>

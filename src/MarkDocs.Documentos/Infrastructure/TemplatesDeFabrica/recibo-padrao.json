@@ -1,0 +1,39 @@
+{
+  "familia": "documento-de-negocio",
+  "esquema": 1,
+  "id": "recibo-padrao",
+  "nome": "Recibo padrão",
+  "tipoDocumental": "Recibo",
+  "fontes": ["Libertinus Serif"],
+
+  "pagina": {
+    "papel": "a5",
+    "margem": { "topo": "18mm", "base": "18mm", "esquerda": "16mm", "direita": "16mm" }
+  },
+
+  "texto": {
+    "familia": "Libertinus Serif",
+    "tamanho": "11pt",
+    "cor": "#1c1917",
+    "idioma": "pt"
+  },
+
+  "paragrafo": { "justificado": true, "entrelinha": "0.75em", "espacoEntre": "10pt" },
+
+  "titulos": [
+    { "nivel": 1, "tamanho": "15pt", "alinhamento": "centro", "caixa": "alta",
+      "espacoAntes": "0pt", "espacoDepois": "20pt" },
+    { "nivel": 2, "tamanho": "11pt", "alinhamento": "esquerda",
+      "espacoAntes": "14pt", "espacoDepois": "6pt" }
+  ],
+
+  "tabela": {
+    "filete": "#d6d3d1",
+    "espessura": "0.5pt",
+    "respiro": "4pt",
+    "cabecalhoForte": true,
+    "repetirCabecalho": false
+  },
+
+  "estilosDeTexto": {}
+}

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    A hospedagem do frontend (../../frontend), sem conhecer slice nenhum: serve
+    os arquivos estáticos do wwwroot/ que fica ao lado deste assembly e devolve
+    o index.html para as rotas do SPA. O frontend fala com o backend só pela
+    API REST (/api/*).
+
+    O SpaProxy (dev) e o target BuildFrontend (Release/Publish) ficam no Host
+    (src/MarkDocs/MarkDocs.csproj): o SpaProxy precisa alterar o
+    launchSettings.json do projeto executável.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MarkDocs.WebUi</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.AspNetCore.Builder" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+    <Using Include="Microsoft.AspNetCore.Routing" />
+  </ItemGroup>
+
+</Project>

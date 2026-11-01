@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    A camada HTTP: os IEndpointRouteHandler, os DTOs e a tradução entre HTTP e
+    os commands/queries dos slices. É uma class library; quem a hospeda é o
+    projeto MarkDocs (Host), que descobre os handlers por WebApiMarker.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MarkDocs.WebApi</RootNamespace>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.AspNetCore.Builder" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+    <Using Include="Microsoft.AspNetCore.Routing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.4.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MarkDocs.Documentos\MarkDocs.Documentos.csproj" />
+    <ProjectReference Include="..\MarkDocs.Abstractions\MarkDocs.Abstractions.csproj" />
+    <ProjectReference Include="..\..\MarkDocs.Core\Sources\MarkDocs.Core\MarkDocs.Core.csproj" />
+  </ItemGroup>
+
+</Project>

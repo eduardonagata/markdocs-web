@@ -1,0 +1,59 @@
+{
+  "familia": "documento-de-negocio",
+  "esquema": 1,
+  "id": "orcamento-padrao",
+  "nome": "Orçamento padrão",
+  "tipoDocumental": "Orçamento",
+  "fontes": ["Libertinus Serif", "Libertinus Sans"],
+
+  "pagina": {
+    "papel": "a4",
+    "margem": { "topo": "26mm", "base": "24mm", "esquerda": "22mm", "direita": "22mm" }
+  },
+
+  "texto": {
+    "familia": "Libertinus Serif",
+    "tamanho": "10.5pt",
+    "cor": "#1c1917",
+    "idioma": "pt"
+  },
+
+  "paragrafo": { "justificado": false, "entrelinha": "0.65em", "espacoEntre": "9pt" },
+
+  "titulos": [
+    { "nivel": 1, "familia": "Libertinus Sans", "tamanho": "18pt",
+      "alinhamento": "esquerda", "espacoAntes": "0pt", "espacoDepois": "20pt" },
+    { "nivel": 2, "familia": "Libertinus Sans", "tamanho": "11pt", "caixa": "alta",
+      "cor": "#57534e", "alinhamento": "esquerda",
+      "espacoAntes": "20pt", "espacoDepois": "7pt" }
+  ],
+
+  "tabela": {
+    "filete": "#d6d3d1",
+    "espessura": "0.5pt",
+    "respiro": "6pt",
+    "cabecalhoForte": true,
+    "repetirCabecalho": true
+  },
+
+  "estilosDeTexto": {
+    "nota": { "familia": "Libertinus Sans", "tamanho": "8pt", "cor": "#78716c" }
+  },
+
+  "moldura": {
+    "paginas": {
+      "todas": {
+        "rodape": {
+          "afastamento": "14mm",
+          "estilo": "nota",
+          "esquerda": [{ "peca": "campo", "campo": "tipoDocumental" }],
+          "direita": [
+            { "peca": "campo", "campo": "numeroDaPagina" },
+            { "peca": "texto", "valor": " / " },
+            { "peca": "campo", "campo": "totalDePaginas" }
+          ]
+        }
+      }
+    }
+  }
+}
