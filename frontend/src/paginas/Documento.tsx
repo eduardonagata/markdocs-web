@@ -39,6 +39,7 @@ import {
   CheckmarkRegular,
   DeleteRegular,
   DocumentCopyRegular,
+  DocumentHeaderFooterRegular,
   ImageMultipleRegular,
   MoreHorizontalRegular,
   PaintBrushRegular,
@@ -50,8 +51,10 @@ import {
   useCriarTemplate,
   useDocumento,
   useGravarImagem,
+  useGravarTimbre,
   useRemoverDocumento,
   useRemoverImagem,
+  useRemoverTimbre,
   useTemplates,
 } from '../api/consultas';
 import type { Ajuste, AtualizarDocumento, Documento } from '../api/tipos';
@@ -63,6 +66,7 @@ import { PerguntarSobreSelecao } from '../componentes/assistente/PerguntarSobreS
 import { EditorMarkdown, type EditorMarkdownRef } from '../componentes/editor/EditorMarkdown';
 import { InspetorDeFormatacao } from '../componentes/InspetorDeFormatacao';
 import { PainelDeImagens } from '../componentes/PainelDeImagens';
+import { PainelDoTimbre } from '../componentes/PainelDoTimbre';
 import { lerModo, SeletorDeModo, Vistas, type Modo } from '../componentes/Vistas';
 import { VisualizadorPdf } from '../componentes/VisualizadorPdf';
 import { alternativo } from '../util';
@@ -96,7 +100,7 @@ const useEstilos = makeStyles({
   lenteDoTexto: { position: 'relative', minHeight: '100%', display: 'flex', flexDirection: 'column' },
 });
 
-type Painel = 'formatacao' | 'imagens' | null;
+type Painel = 'formatacao' | 'timbre' | 'imagens' | null;
 type Estado = 'salvo' | 'salvando' | 'erro';
 
 /** As alterações do assistente na tela, ainda não salvas: o texto de antes e o que ele escreveu. */
@@ -127,6 +131,8 @@ export function DocumentoPagina() {
   const criarTemplate = useCriarTemplate();
   const gravarImagem = useGravarImagem(id);
   const removerImagem = useRemoverImagem(id);
+  const gravarTimbre = useGravarTimbre(id);
+  const removerTimbre = useRemoverTimbre(id);
 
   const [texto, setTexto] = useState<string | null>(null);
   const [titulo, setTitulo] = useState('');
@@ -366,6 +372,14 @@ export function DocumentoPagina() {
               onClick={() => setPainel(painel === 'formatacao' ? null : 'formatacao')}
             />
           </Tooltip>
+          <Tooltip content="Papel timbrado" relationship="label">
+            <ToggleButton
+              appearance="subtle"
+              icon={<DocumentHeaderFooterRegular />}
+              checked={painel === 'timbre'}
+              onClick={() => setPainel(painel === 'timbre' ? null : 'timbre')}
+            />
+          </Tooltip>
           <Tooltip content="Imagens do documento" relationship="label">
             <ToggleButton
               appearance="subtle"
@@ -476,6 +490,7 @@ export function DocumentoPagina() {
             <DrawerHeaderTitle>
               <TabList size="small" selectedValue={painel ?? 'formatacao'} onTabSelect={(_, d) => setPainel(d.value as Painel)}>
                 <Tab value="formatacao">Formatação</Tab>
+                <Tab value="timbre">Timbre</Tab>
                 <Tab value="imagens">Imagens</Tab>
               </TabList>
             </DrawerHeaderTitle>
@@ -483,6 +498,19 @@ export function DocumentoPagina() {
           <DrawerBody style={{ paddingTop: tokens.spacingVerticalL }}>
             {painel === 'formatacao' && (
               <InspetorDeFormatacao eixos={documento.eixos} onAjuste={(ajuste) => salvar({ ajustes: [ajuste] })} />
+            )}
+            {painel === 'timbre' && (
+              <PainelDoTimbre
+                documento={documento}
+                enviando={gravarTimbre.isPending || removerTimbre.isPending}
+                onEnviar={(paginas, arquivo) => gravarTimbre.mutate({ paginas, arquivo })}
+                onRemover={(paginas) => removerTimbre.mutate(paginas)}
+              />
+            )}
+            {painel === 'timbre' && (gravarTimbre.error || removerTimbre.error) && (
+              <MessageBar intent="error" style={{ marginTop: tokens.spacingVerticalM }}>
+                <MessageBarBody>{(gravarTimbre.error ?? removerTimbre.error)?.message}</MessageBarBody>
+              </MessageBar>
             )}
             {painel === 'imagens' && (
               <PainelDeImagens
@@ -497,7 +525,7 @@ export function DocumentoPagina() {
                 onRemover={(imagem) => removerImagem.mutate(imagem.nome)}
               />
             )}
-            {gravarImagem.error && (
+            {painel === 'imagens' && gravarImagem.error && (
               <MessageBar intent="error" style={{ marginTop: tokens.spacingVerticalM }}>
                 <MessageBarBody>{gravarImagem.error.message}</MessageBarBody>
               </MessageBar>

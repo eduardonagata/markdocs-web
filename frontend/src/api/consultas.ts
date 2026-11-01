@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './cliente';
-import type { AtualizarDocumento, Documento } from './tipos';
+import type { AtualizarDocumento, Documento, PaginasDoTimbre } from './tipos';
 
 export const chaves = {
   documentos: ['documentos'] as const,
@@ -69,5 +69,28 @@ export function useRemoverImagem(documentoId: string) {
   return useMutation({
     mutationFn: (nome: string) => api.removerImagem(documentoId, nome),
     onSuccess: () => void cliente.invalidateQueries({ queryKey: chaves.documento(documentoId) }),
+  });
+}
+
+/** O timbre é formatação: a resposta é o documento inteiro, que vai para o cache (e o PDF é refeito). */
+export function useGravarTimbre(documentoId: string) {
+  const cliente = useQueryClient();
+  return useMutation({
+    mutationFn: (p: { paginas: PaginasDoTimbre; arquivo: File }) => api.gravarTimbre(documentoId, p.paginas, p.arquivo),
+    onSuccess: (documento: Documento) => {
+      cliente.setQueryData(chaves.documento(documentoId), documento);
+      void cliente.invalidateQueries({ queryKey: chaves.documentos, exact: true });
+    },
+  });
+}
+
+export function useRemoverTimbre(documentoId: string) {
+  const cliente = useQueryClient();
+  return useMutation({
+    mutationFn: (paginas: PaginasDoTimbre) => api.removerTimbre(documentoId, paginas),
+    onSuccess: (documento: Documento) => {
+      cliente.setQueryData(chaves.documento(documentoId), documento);
+      void cliente.invalidateQueries({ queryKey: chaves.documentos, exact: true });
+    },
   });
 }

@@ -41,7 +41,12 @@ O PDF é composto pelo **MarkDocs.Core**, a transcrição .NET do NotiqTypst
    documento aparecem — na tela, resolvidas contra `/api/documentos/{id}/`; no
    PDF, entregues ao Acervo do Typst; numa exportação, ao lado do `.md`. Ver
    [MarkDocs.Core/Docs/Imagens.md](MarkDocs.Core/Docs/Imagens.md).
-6. **Assistente.** Um agente conversacional, em qualquer tela (botão *Assistente*
+6. **Papel timbrado.** Na aba *Timbre* da gaveta do documento, uma imagem vira
+   o fundo das páginas — de todas, só da primeira, ou das demais. Ela ocupa a
+   página inteira, como está (o app não a ajusta): a tela mostra o tamanho do
+   papel e avisa quando a proporção da imagem é outra. O timbre é ativo de
+   template — vai junto quando o documento vira template.
+7. **Assistente.** Um agente conversacional, em qualquer tela (botão *Assistente*
    ou ⌘J / Ctrl+J), que **age sobre a tela**: edita o documento aberto no próprio
    editor — o que ele mudou fica destacado até você manter ou desfazer —, e
    tudo o que grava no servidor (salvar, criar documento, aplicar template)
@@ -131,6 +136,9 @@ classe nova e um caso no `AddDocumentosModule`.
 | `POST` | `/api/documentos/{id}/imagens` | envia uma imagem (`multipart/form-data`, campo `arquivo`) |
 | `GET` | `/api/documentos/{id}/imagens/{nome}` | uma imagem dos ativos — e só dos ativos |
 | `DELETE` | `/api/documentos/{id}/imagens/{nome}` | remove uma imagem |
+| `PUT` | `/api/documentos/{id}/timbre/{paginas}` | o papel timbrado (`multipart/form-data`, campo `arquivo`) em `todas`, na `primeira` ou nas `demais`; devolve o documento |
+| `GET` | `/api/documentos/{id}/timbre/{paginas}` | a imagem do timbre que vale na `primeira` ou nas `demais` |
+| `DELETE` | `/api/documentos/{id}/timbre/{paginas}` | tira o timbre; devolve o documento |
 | `GET` | `/api/templates` | lista os templates |
 | `POST` | `/api/templates` | cria um template a partir de um documento formatado: `{ documentoId, nome }` |
 | `GET` | `/api/templates/{id}/amostra` | um PDF de amostra com a formatação do template |

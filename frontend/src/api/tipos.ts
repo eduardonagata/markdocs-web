@@ -22,6 +22,17 @@ export interface Documento {
   alteradoEm: string;
   eixos: Eixo[];
   imagens: Imagem[];
+  /** O papel timbrado que vale na primeira página e nas demais (o mesmo, quando é de todas). */
+  timbres: { primeira: Timbre | null; demais: Timbre | null };
+}
+
+/** Em que páginas um timbre vai. */
+export type PaginasDoTimbre = 'todas' | 'primeira' | 'demais';
+
+/** Um timbre: o nome do ativo e o endereço da imagem. */
+export interface Timbre {
+  nome: string;
+  url: string;
 }
 
 /** Uma imagem do documento. `referencia` é o que o Markdown escreve: `imagens/planta.png`. */

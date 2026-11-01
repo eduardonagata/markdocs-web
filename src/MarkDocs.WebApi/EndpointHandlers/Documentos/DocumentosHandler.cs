@@ -106,7 +106,7 @@ public class DocumentosHandler : IEndpointRouteHandler
         return Results.Bytes(composicao.Pdf, "application/pdf");
     }
 
-    private static DocumentoResponse ToDto(DocumentoComEixos completo)
+    internal static DocumentoResponse ToDto(DocumentoComEixos completo)
     {
         var (documento, eixos) = completo;
         return new DocumentoResponse(
@@ -119,6 +119,7 @@ public class DocumentosHandler : IEndpointRouteHandler
             documento.CriadoEm,
             documento.AlteradoEm,
             eixos.Select(EixoResponse.De).ToList(),
-            documento.Imagens.Select(i => ImagensHandler.ToDto(documento, i)).ToList());
+            documento.Imagens.Select(i => ImagensHandler.ToDto(documento, i)).ToList(),
+            TimbreHandler.ToDto(documento));
     }
 }

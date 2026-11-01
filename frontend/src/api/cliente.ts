@@ -1,4 +1,4 @@
-import type { AtualizarDocumento, Documento, DocumentoResumo, Imagem, StatusDoAgente, Template } from './tipos';
+import type { AtualizarDocumento, Documento, DocumentoResumo, Imagem, PaginasDoTimbre, StatusDoAgente, Template } from './tipos';
 
 /** Uma resposta de erro da API, com a mensagem que ela devolveu. */
 export class ErroDaApi extends Error {
@@ -57,6 +57,16 @@ export const api = {
 
   removerImagem: (documentoId: string, nome: string) =>
     pedir<void>(`/api/documentos/${documentoId}/imagens/${encodeURIComponent(nome)}`, { method: 'DELETE' }),
+
+  /** Põe uma imagem como papel timbrado; devolve o documento, com a formatação nova. */
+  gravarTimbre: (documentoId: string, paginas: PaginasDoTimbre, arquivo: File) => {
+    const formulario = new FormData();
+    formulario.append('arquivo', arquivo, arquivo.name);
+    return pedir<Documento>(`/api/documentos/${documentoId}/timbre/${paginas}`, { method: 'PUT', body: formulario });
+  },
+
+  removerTimbre: (documentoId: string, paginas: PaginasDoTimbre) =>
+    pedir<Documento>(`/api/documentos/${documentoId}/timbre/${paginas}`, { method: 'DELETE' }),
 
   templates: () => pedir<Template[]>('/api/templates'),
 
